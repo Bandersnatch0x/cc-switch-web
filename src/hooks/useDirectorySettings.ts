@@ -101,6 +101,7 @@ export interface UseDirectorySettingsResult {
     codexDir?: string,
     geminiDir?: string,
   ) => void;
+  applyWslTemplate: (distro?: string) => void;
 }
 
 /**
@@ -362,6 +363,29 @@ export function useDirectorySettings({
     [],
   );
 
+  const applyWslTemplate = useCallback(
+    (distro?: string) => {
+      const normalizedDistro = (distro ?? "").trim() || "Ubuntu";
+      const usernamePlaceholder = t("settings.wslTemplateUserPlaceholder", {
+        defaultValue: "your-username",
+      });
+      const base = `\\\\wsl$\\${normalizedDistro}\\home\\<${usernamePlaceholder}>`;
+
+      updateDirectoryState("claude", `${base}\\.claude`);
+      updateDirectoryState("codex", `${base}\\.codex`);
+      updateDirectoryState("gemini", `${base}\\.gemini`);
+
+      toast.success(
+        t("settings.wslTemplateApplied", {
+          defaultValue:
+            "Filled WSL template paths for {{distro}}. Save settings to apply.",
+          distro: normalizedDistro,
+        }),
+      );
+    },
+    [t, updateDirectoryState],
+  );
+
   return {
     appConfigDir,
     resolvedDirs,
@@ -374,5 +398,6 @@ export function useDirectorySettings({
     resetDirectory,
     resetAppConfigDir,
     resetAllDirectories,
+    applyWslTemplate,
   };
 }

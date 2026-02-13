@@ -80,6 +80,7 @@ const createDirectorySettingsMock = (overrides: Record<string, unknown> = {}) =>
     appConfig: "/home/mock/.cc-switch",
     claude: "/default/claude",
     codex: "/default/codex",
+    gemini: "/default/gemini",
   },
   isLoading: false,
   initialAppConfigDir: undefined,
@@ -90,6 +91,7 @@ const createDirectorySettingsMock = (overrides: Record<string, unknown> = {}) =>
   resetDirectory: vi.fn(),
   resetAppConfigDir: vi.fn(),
   resetAllDirectories: vi.fn(),
+  applyWslTemplate: vi.fn(),
   ...overrides,
 });
 

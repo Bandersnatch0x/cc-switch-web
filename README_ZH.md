@@ -96,18 +96,32 @@
 
 | 架构 | 下载链接 |
 |------|----------|
-| **Linux x86_64** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-x86_64) |
-| **Linux aarch64** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-aarch64) |
+| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-x86_64) |
+| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-aarch64) |
+| **Linux x86_64 (musl)** | [cc-switch-server-linux-x86_64-musl](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-x86_64-musl) |
+| **Linux aarch64 (musl)** | [cc-switch-server-linux-aarch64-musl](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-aarch64-musl) |
+
+> **glibc 说明**：GNU 版在 Ubuntu 20.04 构建（glibc 2.31+）。  
+> 如果报 `GLIBC_2.xx not found`，请改用 **musl** 版、Docker 或源码构建。  
+> 可用 `ldd --version` 查看 glibc 版本。
 
 **一键部署**：
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
 ```
 
+**常见问题速查**：
+- 报 `GLIBC_2.xx not found`：脚本会在 `LIBC_VARIANT=auto` 下优先尝试兼容版本；也可手动指定 `LIBC_VARIANT=musl`。
+- 想直接容器化运行：使用 `docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest`。
+- Windows + WSL 共用配置：设置页支持一键填充 WSL 模板路径（高级设置页中的“填充 WSL 模板路径”）。
+
 **高级选项**：
 ```bash
 # 自定义安装目录和端口
 INSTALL_DIR=/opt/cc-switch PORT=8080 curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
+
+# 强制使用 musl 预编译（Alpine/旧 glibc）
+LIBC_VARIANT=musl curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
 
 # 创建 systemd 服务（开机自启）
 CREATE_SERVICE=1 curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
@@ -231,6 +245,22 @@ NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
 ---
 
 ## 使用指南
+
+### WSL 配置共享（Windows + WSL）
+
+如果 CLI 在 WSL 内运行，而 CC Switch 在 Windows 上运行，请将配置目录覆盖指向 WSL 文件系统，保证供应商配置一致。
+
+1. 打开 **设置 → 配置目录覆盖（高级）**。
+2. 将目录设置为 WSL 路径，例如：
+   - Claude: `\\wsl$\Ubuntu\home\<你的用户名>\.claude`
+   - Codex: `\\wsl$\Ubuntu\home\<你的用户名>\.codex`
+   - Gemini: `\\wsl$\Ubuntu\home\<你的用户名>\.gemini`
+3. 也可点击 **“填充 WSL 模板路径”** 按钮自动写入模板，再按你的发行版/用户名微调。
+
+注意：
+- 将 `Ubuntu` 替换为你的发行版名称。
+- 确保 WSL 发行版正在运行，否则路径无法解析。
+- 如果 `\\wsl$` 无法访问，可尝试 `\\wsl.localhost\\发行版\\home\\user\\.claude`。
 
 ### 1. 添加供应商
 
