@@ -1,6 +1,6 @@
 # CC-Switch-Web
 
-<sub>🙏 本项目由 Laliet 维护，基于 [farion1231/cc-switch](https://github.com/farion1231/cc-switch) 开发。本 fork 添加了 Web 服务器模式，支持云端/无头部署。</sub>
+<sub>🙏 本项目是 [farion1231/cc-switch](https://github.com/farion1231/cc-switch)（Jason Young）的 fork 版本。感谢原作者的出色工作。本 fork 添加了 Web 服务器模式，支持云端/无头部署。</sub>
 
 [![Release](https://img.shields.io/github/v/release/Laliet/CC-Switch-Web?style=flat-square&logo=github&label=Release)](https://github.com/Laliet/CC-Switch-Web/releases/latest)
 [![License](https://img.shields.io/github/license/Laliet/CC-Switch-Web?style=flat-square)](LICENSE)
@@ -32,18 +32,15 @@
 
 ## 更新内容
 
-### v0.7.1 - CI 和类型检查修复
-- 修复 GitHub Actions CI 工作流配置
-- 解决 TypeScript 类型检查问题
-- 提升构建可靠性
+### v0.9.0 - 正式稳定版
+- Claude Code / Codex / Gemini 统一管理进入正式稳定发布
+- 发布工作流支持自动区分正式版与预发布，并产出完整构件
+- CI、测试与发布打包链路稳定性进一步提升
 
-### v0.7.0 - Web 稳定性与 Skills 性能
-- Skills 仓库缓存与条件刷新（ETag/Last-Modified）
-- 通过环境变量 `CC_SWITCH_SKILLS_CACHE_TTL_SECS` 配置缓存 TTL，获取失败回退缓存
-- Web API 基地址可覆盖，并在 `WebLoginDialog` 中更安全地校验
-- Web 模式读取实时配置并写入默认供应商（不切换 current）
-- Web 切换后与实时配置同步，失败时返回明确错误
-- Skills 体验：页面状态行显示"缓存命中/后台刷新"
+### v0.8.0 - Web 安全基线
+- Web 模式默认同源 CORS
+- 支持通过 `ALLOW_LAN_CORS=1` / `CC_SWITCH_LAN_CORS=1` 放行私有局域网来源
+- 云端部署默认策略更安全
 
 ## 界面展示
 
@@ -96,13 +93,11 @@
 
 | 架构 | 下载链接 |
 |------|----------|
-| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-x86_64) |
-| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-aarch64) |
-| **Linux x86_64 (musl)** | [cc-switch-server-linux-x86_64-musl](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-x86_64-musl) |
-| **Linux aarch64 (musl)** | [cc-switch-server-linux-aarch64-musl](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/cc-switch-server-linux-aarch64-musl) |
+| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/cc-switch-server-linux-x86_64) |
+| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/cc-switch-server-linux-aarch64) |
 
-> **glibc 说明**：GNU 版在 Ubuntu 20.04 构建（glibc 2.31+）。  
-> 如果报 `GLIBC_2.xx not found`，请改用 **musl** 版、Docker 或源码构建。  
+> **glibc 说明**：预编译二进制基于 Ubuntu 22.04 构建。  
+> 如果报 `GLIBC_2.xx not found`，请改用 Docker 或源码构建。  
 > 可用 `ldd --version` 查看 glibc 版本。
 
 **一键部署**：
@@ -111,7 +106,7 @@ curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/d
 ```
 
 **常见问题速查**：
-- 报 `GLIBC_2.xx not found`：脚本会在 `LIBC_VARIANT=auto` 下优先尝试兼容版本；也可手动指定 `LIBC_VARIANT=musl`。
+- 报 `GLIBC_2.xx not found`：建议使用 Docker（`ghcr.io/laliet/cc-switch-web:latest`）或源码构建。
 - 想直接容器化运行：使用 `docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest`。
 - Windows + WSL 共用配置：设置页支持一键填充 WSL 模板路径（高级设置页中的“填充 WSL 模板路径”）。
 
@@ -119,9 +114,6 @@ curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/d
 ```bash
 # 自定义安装目录和端口
 INSTALL_DIR=/opt/cc-switch PORT=8080 curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
-
-# 强制使用 musl 预编译（Alpine/旧 glibc）
-LIBC_VARIANT=musl curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
 
 # 创建 systemd 服务（开机自启）
 CREATE_SERVICE=1 curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
@@ -210,11 +202,11 @@ HOST=0.0.0.0 PORT=3000 ./target/release/examples/server
 
 | 平台 | 下载链接 | 说明 |
 |------|----------|------|
-| **Windows** | [CC-Switch-v0.7.1-Windows.msi](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/CC-Switch-v0.7.1-Windows.msi) | 安装版（推荐） |
-| | [CC-Switch-v0.7.1-Windows-Portable.zip](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/CC-Switch-v0.7.1-Windows-Portable.zip) | 绿色版（免安装） |
-| **macOS** | [CC-Switch-v0.7.1-macOS.zip](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/CC-Switch-v0.7.1-macOS.zip) | 通用二进制（Intel + Apple Silicon） |
-| **Linux** | [CC-Switch-v0.7.1-Linux.AppImage](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/CC-Switch-v0.7.1-Linux.AppImage) | AppImage（通用） |
-| | [CC-Switch-v0.7.1-Linux.deb](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.7.1/CC-Switch-v0.7.1-Linux.deb) | Debian/Ubuntu 包 |
+| **Windows** | [CC-Switch-v0.9.0-Windows.msi](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/CC-Switch-v0.9.0-Windows.msi) | 安装版（推荐） |
+| | [CC-Switch-v0.9.0-Windows-Portable.zip](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/CC-Switch-v0.9.0-Windows-Portable.zip) | 绿色版（免安装） |
+| **macOS** | [CC-Switch-v0.9.0-macOS.zip](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/CC-Switch-v0.9.0-macOS.zip) | 通用二进制（Intel + Apple Silicon） |
+| **Linux** | [CC-Switch-v0.9.0-Linux.AppImage](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/CC-Switch-v0.9.0-Linux.AppImage) | AppImage（通用） |
+| | [CC-Switch-v0.9.0-Linux.deb](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/CC-Switch-v0.9.0-Linux.deb) | Debian/Ubuntu 包 |
 
 **macOS 提示**：如遇"已损坏"警告，在终端执行：`xattr -cr "/Applications/CC Switch.app"`
 
@@ -236,7 +228,7 @@ curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/i
 **高级选项**：
 ```bash
 # 安装指定版本
-VERSION=v0.7.1 curl -fsSL https://...install.sh | bash
+VERSION=v0.9.0 curl -fsSL https://...install.sh | bash
 
 # 跳过校验
 NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
@@ -245,22 +237,6 @@ NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
 ---
 
 ## 使用指南
-
-### WSL 配置共享（Windows + WSL）
-
-如果 CLI 在 WSL 内运行，而 CC Switch 在 Windows 上运行，请将配置目录覆盖指向 WSL 文件系统，保证供应商配置一致。
-
-1. 打开 **设置 → 配置目录覆盖（高级）**。
-2. 将目录设置为 WSL 路径，例如：
-   - Claude: `\\wsl$\Ubuntu\home\<你的用户名>\.claude`
-   - Codex: `\\wsl$\Ubuntu\home\<你的用户名>\.codex`
-   - Gemini: `\\wsl$\Ubuntu\home\<你的用户名>\.gemini`
-3. 也可点击 **“填充 WSL 模板路径”** 按钮自动写入模板，再按你的发行版/用户名微调。
-
-注意：
-- 将 `Ubuntu` 替换为你的发行版名称。
-- 确保 WSL 发行版正在运行，否则路径无法解析。
-- 如果 `\\wsl$` 无法访问，可尝试 `\\wsl.localhost\\发行版\\home\\user\\.claude`。
 
 ### 1. 添加供应商
 
@@ -339,18 +315,8 @@ pnpm tauri build
 pnpm build:web
 
 # 运行测试
-pnpm test
+pnpm test:unit
 ```
-
----
-
-## 构建与发布策略
-
-- **不要**在当前服务器上构建发布产物。
-- 生产构建统一通过 **GitHub Actions CI/Release 工作流**完成。
-- 本地构建输出（如 `target/`、`dist-web/`、二进制文件、coverage 目录）禁止提交到仓库。
-
-长期策略文档见：`docs/BUILD_RELEASE_POLICY.md`。
 
 ---
 
@@ -364,13 +330,13 @@ pnpm test
 
 ## 更新日志
 
-参见 [CHANGELOG.md](CHANGELOG.md) — 当前版本：**v0.7.1**
+参见 [CHANGELOG.md](CHANGELOG.md) — 当前版本：**v0.9.0**
 
 ---
 
 ## 致谢
 
-本项目由 **Laliet** 维护，基于上游开源项目 **[cc-switch](https://github.com/farion1231/cc-switch)** 二次开发。衷心感谢上游项目为本项目奠定了坚实基础。
+本项目基于 Jason Young (farion1231) 的开源项目 **[cc-switch](https://github.com/farion1231/cc-switch)** 二次开发。衷心感谢原作者创建了如此优秀的开源项目，为本项目奠定了坚实基础。没有上游项目的开拓性工作，就不会有 CC-Switch-Web 的诞生。
 
 上游 Tauri 桌面应用统一了供应商切换、MCP 管理、技能和提示词功能，具备完善的国际化和安全特性。CC-Switch-Web 在此基础上增加了 Web/服务器运行模式、CORS 控制、Basic Auth、更多模板，以及云端/无头部署文档。
 
