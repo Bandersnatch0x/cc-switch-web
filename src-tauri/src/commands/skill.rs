@@ -184,13 +184,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_skill_app_rejects_upcoming_app_ids() {
-        let err = parse_skill_app(Some("opencode".into()))
-            .expect_err("upcoming app id should be rejected for now");
-        assert!(
-            err.contains("暂未支持") || err.contains("not supported yet"),
-            "unexpected error message: {err}"
-        );
+    fn parse_skill_app_accepts_opencode() {
+        let app = parse_skill_app(Some("opencode".into()))
+            .expect("opencode should be supported for skills");
+        assert_eq!(app, AppType::Opencode);
     }
 }
 

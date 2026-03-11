@@ -37,6 +37,7 @@ pub fn write_opencode_config(config: &Value) -> Result<(), AppError> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn get_providers() -> Result<Map<String, Value>, AppError> {
     let config = read_opencode_config()?;
     Ok(config
@@ -46,6 +47,7 @@ pub fn get_providers() -> Result<Map<String, Value>, AppError> {
         .unwrap_or_default())
 }
 
+#[allow(dead_code)]
 pub fn set_provider(id: &str, config: Value) -> Result<(), AppError> {
     let mut full_config = read_opencode_config()?;
 
@@ -63,6 +65,7 @@ pub fn set_provider(id: &str, config: Value) -> Result<(), AppError> {
     write_opencode_config(&full_config)
 }
 
+#[allow(dead_code)]
 pub fn remove_provider(id: &str) -> Result<(), AppError> {
     let mut config = read_opencode_config()?;
 
