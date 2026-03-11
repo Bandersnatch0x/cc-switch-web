@@ -19,7 +19,12 @@ impl McpService {
             let imported_from_claude = mcp::import_from_claude(&mut cfg)?;
             let imported_from_codex = mcp::import_from_codex(&mut cfg)?;
             let imported_from_gemini = mcp::import_from_gemini(&mut cfg)?;
-            if imported_from_claude > 0 || imported_from_codex > 0 || imported_from_gemini > 0 {
+            let imported_from_opencode = mcp::import_from_opencode(&mut cfg)?;
+            if imported_from_claude > 0
+                || imported_from_codex > 0
+                || imported_from_gemini > 0
+                || imported_from_opencode > 0
+            {
                 need_save = true;
             }
 
@@ -70,6 +75,7 @@ impl McpService {
             merge_legacy(&cfg.mcp.claude, &AppType::Claude);
             merge_legacy(&cfg.mcp.codex, &AppType::Codex);
             merge_legacy(&cfg.mcp.gemini, &AppType::Gemini);
+            merge_legacy(&cfg.mcp.opencode, &AppType::Opencode);
 
             (servers, need_save)
         };
@@ -202,7 +208,10 @@ impl McpService {
             AppType::Gemini => {
                 mcp::sync_single_server_to_gemini(cfg, &server.id, &server.server)?;
             }
-            AppType::Opencode | AppType::Omo => {
+            AppType::Opencode => {
+                mcp::sync_single_server_to_opencode(cfg, &server.id, &server.server)?;
+            }
+            AppType::Omo => {
                 return Err(AppError::localized(
                     "app_not_supported_yet",
                     format!("应用 '{}' 暂未支持，敬请期待。", app.as_str()),
@@ -231,7 +240,8 @@ impl McpService {
             AppType::Claude => mcp::remove_server_from_claude(id)?,
             AppType::Codex => mcp::remove_server_from_codex(id)?,
             AppType::Gemini => mcp::remove_server_from_gemini(id)?,
-            AppType::Opencode | AppType::Omo => {
+            AppType::Opencode => mcp::remove_server_from_opencode(id)?,
+            AppType::Omo => {
                 return Err(AppError::localized(
                     "app_not_supported_yet",
                     format!("应用 '{}' 暂未支持，敬请期待。", app.as_str()),
@@ -323,6 +333,14 @@ impl McpService {
     pub fn import_from_gemini(state: &AppState) -> Result<usize, AppError> {
         let mut cfg = state.config.write()?;
         let count = mcp::import_from_gemini(&mut cfg)?;
+        drop(cfg);
+        state.save()?;
+        Ok(count)
+    }
+
+    pub fn import_from_opencode(state: &AppState) -> Result<usize, AppError> {
+        let mut cfg = state.config.write()?;
+        let count = mcp::import_from_opencode(&mut cfg)?;
         drop(cfg);
         state.save()?;
         Ok(count)

@@ -13,6 +13,8 @@ pub struct McpApps {
     pub codex: bool,
     #[serde(default)]
     pub gemini: bool,
+    #[serde(default)]
+    pub opencode: bool,
 }
 
 impl McpApps {
@@ -22,7 +24,8 @@ impl McpApps {
             AppType::Claude => self.claude,
             AppType::Codex => self.codex,
             AppType::Gemini => self.gemini,
-            AppType::Opencode | AppType::Omo => false,
+            AppType::Opencode => self.opencode,
+            AppType::Omo => false,
         }
     }
 
@@ -32,7 +35,8 @@ impl McpApps {
             AppType::Claude => self.claude = enabled,
             AppType::Codex => self.codex = enabled,
             AppType::Gemini => self.gemini = enabled,
-            AppType::Opencode | AppType::Omo => {}
+            AppType::Opencode => self.opencode = enabled,
+            AppType::Omo => {}
         }
     }
 
@@ -48,12 +52,15 @@ impl McpApps {
         if self.gemini {
             apps.push(AppType::Gemini);
         }
+        if self.opencode {
+            apps.push(AppType::Opencode);
+        }
         apps
     }
 
     /// 检查是否所有应用都未启用
     pub fn is_empty(&self) -> bool {
-        !self.claude && !self.codex && !self.gemini
+        !self.claude && !self.codex && !self.gemini && !self.opencode
     }
 }
 
@@ -103,6 +110,8 @@ pub struct McpRoot {
     pub codex: McpConfig,
     #[serde(default, skip_serializing_if = "McpConfig::is_empty")]
     pub gemini: McpConfig,
+    #[serde(default, skip_serializing_if = "McpConfig::is_empty")]
+    pub opencode: McpConfig,
 }
 
 impl Default for McpRoot {
@@ -114,6 +123,7 @@ impl Default for McpRoot {
             claude: McpConfig::default(),
             codex: McpConfig::default(),
             gemini: McpConfig::default(),
+            opencode: McpConfig::default(),
         }
     }
 }
@@ -134,6 +144,8 @@ pub struct PromptRoot {
     pub codex: PromptConfig,
     #[serde(default)]
     pub gemini: PromptConfig,
+    #[serde(default)]
+    pub opencode: PromptConfig,
 }
 
 use crate::config::{copy_file, get_app_config_dir, get_app_config_path, write_json_file};
@@ -236,7 +248,7 @@ impl AppType {
     }
 
     pub fn is_supported(&self) -> bool {
-        matches!(self, AppType::Claude | AppType::Codex | AppType::Gemini)
+        matches!(self, AppType::Claude | AppType::Codex | AppType::Gemini | AppType::Opencode)
     }
 
     pub fn ensure_supported(&self) -> Result<(), AppError> {
@@ -532,7 +544,8 @@ impl MultiAppConfig {
             AppType::Claude => &self.mcp.claude,
             AppType::Codex => &self.mcp.codex,
             AppType::Gemini => &self.mcp.gemini,
-            AppType::Opencode | AppType::Omo => &self.mcp.codex,
+            AppType::Opencode => &self.mcp.opencode,
+            AppType::Omo => &self.mcp.codex,
         }
     }
 
@@ -542,7 +555,8 @@ impl MultiAppConfig {
             AppType::Claude => &mut self.mcp.claude,
             AppType::Codex => &mut self.mcp.codex,
             AppType::Gemini => &mut self.mcp.gemini,
-            AppType::Opencode | AppType::Omo => &mut self.mcp.codex,
+            AppType::Opencode => &mut self.mcp.opencode,
+            AppType::Omo => &mut self.mcp.codex,
         }
     }
 
@@ -556,6 +570,7 @@ impl MultiAppConfig {
         Self::auto_import_prompt_if_exists(&mut config, AppType::Claude)?;
         Self::auto_import_prompt_if_exists(&mut config, AppType::Codex)?;
         Self::auto_import_prompt_if_exists(&mut config, AppType::Gemini)?;
+        Self::auto_import_prompt_if_exists(&mut config, AppType::Opencode)?;
 
         Ok(config)
     }
@@ -575,6 +590,7 @@ impl MultiAppConfig {
         if !self.prompts.claude.prompts.is_empty()
             || !self.prompts.codex.prompts.is_empty()
             || !self.prompts.gemini.prompts.is_empty()
+            || !self.prompts.opencode.prompts.is_empty()
         {
             return Ok(false);
         }
@@ -582,7 +598,12 @@ impl MultiAppConfig {
         log::info!("检测到已存在配置文件且 Prompt 列表为空，将尝试从现有提示词文件自动导入");
 
         let mut imported = false;
-        for app in [AppType::Claude, AppType::Codex, AppType::Gemini] {
+        for app in [
+            AppType::Claude,
+            AppType::Codex,
+            AppType::Gemini,
+            AppType::Opencode,
+        ] {
             // 复用已有的单应用导入逻辑
             if Self::auto_import_prompt_if_exists(self, app)? {
                 imported = true;
@@ -651,7 +672,8 @@ impl MultiAppConfig {
             AppType::Claude => &mut config.prompts.claude.prompts,
             AppType::Codex => &mut config.prompts.codex.prompts,
             AppType::Gemini => &mut config.prompts.gemini.prompts,
-            AppType::Opencode | AppType::Omo => return Ok(false),
+            AppType::Opencode => &mut config.prompts.opencode.prompts,
+            AppType::Omo => return Ok(false),
         };
 
         prompts.insert(id, prompt);
@@ -680,12 +702,18 @@ impl MultiAppConfig {
         let mut conflicts = Vec::new();
 
         // 收集所有应用的 MCP
-        for app in [AppType::Claude, AppType::Codex, AppType::Gemini] {
+        for app in [
+            AppType::Claude,
+            AppType::Codex,
+            AppType::Gemini,
+            AppType::Opencode,
+        ] {
             let old_servers = match app {
                 AppType::Claude => &self.mcp.claude.servers,
                 AppType::Codex => &self.mcp.codex.servers,
                 AppType::Gemini => &self.mcp.gemini.servers,
-                AppType::Opencode | AppType::Omo => continue,
+                AppType::Opencode => &self.mcp.opencode.servers,
+                AppType::Omo => continue,
             };
 
             for (id, entry) in old_servers {

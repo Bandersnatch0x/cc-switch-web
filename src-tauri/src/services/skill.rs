@@ -287,7 +287,10 @@ impl SkillService {
             AppType::Claude => ".claude",
             AppType::Codex => ".codex",
             AppType::Gemini => ".gemini",
-            AppType::Opencode | AppType::Omo => {
+            AppType::Opencode => {
+                return Ok(home.join(".config").join("opencode").join("skills"));
+            }
+            AppType::Omo => {
                 return Err(anyhow!(format_skill_error(
                     "APP_NOT_SUPPORTED",
                     &[("app", app.as_str())],
@@ -303,7 +306,7 @@ impl SkillService {
     }
 
     fn installed_apps_for_directory(directory: &str) -> Vec<String> {
-        [AppType::Claude, AppType::Codex, AppType::Gemini]
+        [AppType::Claude, AppType::Codex, AppType::Gemini, AppType::Opencode]
             .into_iter()
             .filter_map(|app| {
                 let install_dir = Self::get_install_dir_for_app(&app).ok()?;
