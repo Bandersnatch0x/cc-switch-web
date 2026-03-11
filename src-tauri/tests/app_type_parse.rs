@@ -20,8 +20,12 @@ fn parse_known_apps_case_insensitive_and_trim() {
 }
 
 #[test]
-fn parse_supported_rejects_upcoming_apps() {
-    let err = AppType::parse_supported("opencode").unwrap_err();
+fn parse_supported_accepts_opencode_and_rejects_omo() {
+    assert!(matches!(
+        AppType::parse_supported("opencode"),
+        Ok(AppType::Opencode)
+    ));
+    let err = AppType::parse_supported("omo").unwrap_err();
     assert!(err.to_string().contains("暂未支持") || err.to_string().contains("not supported yet"));
 }
 

@@ -83,8 +83,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_app_type_rejects_upcoming_apps() {
-        let err = parse_app_type("opencode").expect_err("upcoming app should be rejected");
+    fn parse_app_type_rejects_omo() {
+        let err = parse_app_type("omo").expect_err("omo should be rejected");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert!(
             err.message.contains("暂未支持") || err.message.contains("not supported yet"),

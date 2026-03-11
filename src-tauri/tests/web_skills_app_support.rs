@@ -47,7 +47,7 @@ async fn response_error_message(res: axum::response::Response) -> String {
 
 #[tokio::test]
 #[serial]
-async fn skills_list_rejects_upcoming_app_query() {
+async fn skills_list_rejects_omo_query() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let _home = ensure_test_home();
@@ -55,7 +55,7 @@ async fn skills_list_rejects_upcoming_app_query() {
     let app = make_app("password", "csrf-token");
     let req = Request::builder()
         .method(Method::GET)
-        .uri("/api/skills?app=opencode")
+        .uri("/api/skills?app=omo")
         .header(AUTHORIZATION, basic_auth_header("admin", "password"))
         .body(Body::empty())
         .expect("build request");
