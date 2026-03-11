@@ -764,7 +764,6 @@ fn provider_service_delete_current_provider_returns_error() {
     }
 }
 
-
 #[test]
 fn provider_service_update_current_codex_preserves_mcp_in_live_and_snapshot() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
