@@ -17,6 +17,8 @@ English | [中文](README_ZH.md) | [Changelog](CHANGELOG.md)
 
 **CC-Switch-Web** is a unified configuration management tool for **Claude Code**, **Codex**, and **Gemini CLI**. It provides both a desktop application and a web server mode for managing AI CLI providers, MCP servers, skills, and system prompts.
 
+This project is a free and open-source project shared for informational and community use only. Any legal issues arising from the use of this project are not related to the project developer.
+
 Whether you're working locally or in a headless cloud environment, CC-Switch-Web offers a seamless experience for:
 
 -  **One-click provider switching** between OpenAI-compatible API endpoints
@@ -94,8 +96,8 @@ Download precompiled server binary—no compilation required:
 
 | Architecture | Download |
 |--------------|----------|
-| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/cc-switch-server-linux-x86_64) |
-| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/cc-switch-server-linux-aarch64) |
+| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/latest/download/cc-switch-server-linux-x86_64) |
+| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/latest/download/cc-switch-server-linux-aarch64) |
 
 > **Note (glibc)**: Binaries are built on Ubuntu 22.04 (glibc baseline).  
 > If you see `GLIBC_2.xx not found`, use Docker or build from source.  

@@ -19,6 +19,8 @@
 
 **CC-Switch-Web** 是一个统一的 AI CLI 配置管理工具，支持 **Claude Code**、**Codex** 和 **Gemini CLI**。提供桌面应用和 Web 服务器两种运行模式，用于管理 AI 供应商、MCP 服务器、技能和系统提示词。
 
+本项目是仅供分享使用的免费开源项目，使用本项目的时候出现任何法律问题与本项目开发者无关。
+
 无论你是在本地开发还是在无图形界面的云端环境，CC-Switch-Web 都能提供流畅的体验：
 
 - **一键切换供应商** — 支持 OpenAI 兼容 API 端点
@@ -93,8 +95,8 @@
 
 | 架构 | 下载链接 |
 |------|----------|
-| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/cc-switch-server-linux-x86_64) |
-| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/download/v0.9.0/cc-switch-server-linux-aarch64) |
+| **Linux x86_64 (glibc)** | [cc-switch-server-linux-x86_64](https://github.com/Laliet/CC-Switch-Web/releases/latest/download/cc-switch-server-linux-x86_64) |
+| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/CC-Switch-Web/releases/latest/download/cc-switch-server-linux-aarch64) |
 
 > **glibc 说明**：预编译二进制基于 Ubuntu 22.04 构建。  
 > 如果报 `GLIBC_2.xx not found`，请改用 Docker 或源码构建。  
