@@ -2,6 +2,20 @@ import type { Settings } from "@/types";
 import { invoke } from "./adapter";
 import type { AppId } from "./types";
 
+export type ConfigDirSource =
+  | "override"
+  | "service-home-default"
+  | "account-home-fallback";
+
+export interface ConfigDirInfo {
+  dir: string;
+  source: ConfigDirSource;
+  overrideDir?: string;
+  serviceHome?: string;
+  accountHome?: string;
+  homeMismatch: boolean;
+}
+
 export interface ConfigTransferResult {
   success: boolean;
   message: string;
@@ -32,6 +46,10 @@ export const settingsApi = {
 
   async getConfigDir(appId: AppId): Promise<string> {
     return await invoke("get_config_dir", { app: appId });
+  },
+
+  async getConfigDirInfo(appId: AppId): Promise<ConfigDirInfo> {
+    return await invoke("get_config_dir_info", { app: appId });
   },
 
   async openConfigFolder(appId: AppId): Promise<void> {

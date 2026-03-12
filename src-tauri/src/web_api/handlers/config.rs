@@ -179,6 +179,23 @@ pub async fn get_config_dir(Path(app): Path<String>) -> ApiResult<String> {
     Ok(Json(dir.to_string_lossy().to_string()))
 }
 
+pub async fn get_config_dir_info(Path(app): Path<String>) -> ApiResult<crate::config::ConfigDirInfo> {
+    let app_type = parse_app_type(&app)?;
+    let info = match app_type {
+        AppType::Claude => crate::config::get_claude_config_dir_info().map_err(ApiError::from)?,
+        AppType::Codex => codex_config::get_codex_config_dir_info().map_err(ApiError::from)?,
+        AppType::Gemini => crate::gemini_config::get_gemini_dir_info().map_err(ApiError::from)?,
+        AppType::Opencode | AppType::Omo => {
+            return Err(ApiError::bad_request(format!(
+                "应用 '{}' 暂未支持，敬请期待。",
+                app_type.as_str()
+            )))
+        }
+    };
+
+    Ok(Json(info))
+}
+
 pub async fn open_config_folder(Path(app): Path<String>) -> ApiResult<bool> {
     let app_type = parse_app_type(&app)?;
     let dir = get_supported_config_dir(app_type)?;

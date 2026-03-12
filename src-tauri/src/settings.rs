@@ -1,13 +1,117 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, RwLock};
 
 use crate::{
-    config::{atomic_write, get_home_dir},
+    config::{atomic_write, get_account_home_dir, get_home_dir},
     error::AppError,
 };
+
+fn select_preferred_home_dir(
+    service_home: Option<PathBuf>,
+    account_home: Option<PathBuf>,
+    prefer_account_home: bool,
+) -> Option<PathBuf> {
+    match (service_home, account_home) {
+        (Some(service), Some(account)) if prefer_account_home && service != account => {
+            Some(account)
+        }
+        (Some(service), _) => Some(service),
+        (None, Some(account)) => Some(account),
+        (None, None) => None,
+    }
+}
+
+fn get_preferred_home_dir() -> Option<PathBuf> {
+    select_preferred_home_dir(
+        get_home_dir(),
+        get_account_home_dir(),
+        cfg!(feature = "web-server"),
+    )
+}
+
+fn settings_path_for_home(home: &Path) -> PathBuf {
+    home.join(".cc-switch").join("settings.json")
+}
+
+fn get_legacy_service_settings_path() -> Option<PathBuf> {
+    let service_home = get_home_dir()?;
+    let preferred_home = get_preferred_home_dir()?;
+
+    if service_home == preferred_home {
+        return None;
+    }
+
+    Some(settings_path_for_home(&service_home))
+}
+
+fn migrate_legacy_default_override_with_homes(
+    raw: Option<String>,
+    default_dir: &Path,
+    service_home: Option<PathBuf>,
+    preferred_home: Option<PathBuf>,
+    prefer_account_home: bool,
+) -> Option<String> {
+    let raw = raw?;
+    if !prefer_account_home {
+        return Some(raw);
+    }
+
+    let service_home = match service_home {
+        Some(home) => home,
+        None => return Some(raw),
+    };
+    let preferred_home = match preferred_home {
+        Some(home) => home,
+        None => return Some(raw),
+    };
+
+    if service_home == preferred_home {
+        return Some(raw);
+    }
+
+    let legacy_default = service_home.join(default_dir);
+    if PathBuf::from(&raw) == legacy_default {
+        return Some(
+            preferred_home
+                .join(default_dir)
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+
+    Some(raw)
+}
+
+fn migrate_legacy_default_override(raw: Option<String>, default_dir: &Path) -> Option<String> {
+    migrate_legacy_default_override_with_homes(
+        raw,
+        default_dir,
+        get_home_dir(),
+        get_preferred_home_dir(),
+        cfg!(feature = "web-server"),
+    )
+}
+
+fn resolve_override_path_with_home(raw: &str, preferred_home: Option<PathBuf>) -> PathBuf {
+    if raw == "~" {
+        if let Some(home) = preferred_home {
+            return home;
+        }
+    } else if let Some(stripped) = raw.strip_prefix("~/") {
+        if let Some(home) = preferred_home {
+            return home.join(stripped);
+        }
+    } else if let Some(stripped) = raw.strip_prefix("~\\") {
+        if let Some(home) = preferred_home {
+            return home.join(stripped);
+        }
+    }
+
+    PathBuf::from(raw)
+}
 
 /// 自定义端点配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,8 +198,71 @@ impl AppSettings {
     fn settings_path() -> Result<PathBuf, AppError> {
         // settings.json 必须使用固定路径，不能被 app_config_dir 覆盖
         // 否则会造成循环依赖：读取 settings 需要知道路径，但路径在 settings 中
-        let home = get_home_dir().ok_or_else(|| AppError::Config("无法获取用户主目录".into()))?;
-        Ok(home.join(".cc-switch").join("settings.json"))
+        let home = get_preferred_home_dir()
+            .ok_or_else(|| AppError::Config("无法获取用户主目录".into()))?;
+        Ok(settings_path_for_home(&home))
+    }
+
+    fn load_from_path(path: &Path) -> Option<Self> {
+        let content = fs::read_to_string(path).ok()?;
+        match serde_json::from_str::<AppSettings>(&content) {
+            Ok(mut settings) => {
+                settings.normalize_paths();
+                Some(settings)
+            }
+            Err(err) => {
+                log::warn!(
+                    "解析设置文件失败，将使用默认设置。路径: {}, 错误: {}",
+                    path.display(),
+                    err
+                );
+                None
+            }
+        }
+    }
+
+    fn save_to_path(&self, path: &Path) -> Result<(), AppError> {
+        let mut normalized = self.clone();
+        normalized.normalize_paths();
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| AppError::io(parent, e))?;
+        }
+
+        let json = serde_json::to_string_pretty(&normalized)
+            .map_err(|e| AppError::JsonSerialize { source: e })?;
+        atomic_write(path, json.as_bytes())?;
+        Ok(())
+    }
+
+    fn load_with_fallback_paths(path: &Path, legacy_path: Option<&Path>) -> Self {
+        if let Some(settings) = Self::load_from_path(path) {
+            return settings;
+        }
+
+        if !path.exists() {
+            if let Some(legacy_path) = legacy_path {
+                if let Some(settings) = Self::load_from_path(legacy_path) {
+                    if let Err(err) = settings.save_to_path(path) {
+                        log::warn!(
+                            "迁移旧设置文件失败。来源: {}, 目标: {}, 错误: {}",
+                            legacy_path.display(),
+                            path.display(),
+                            err
+                        );
+                    } else {
+                        log::info!(
+                            "已迁移旧设置文件。来源: {}, 目标: {}",
+                            legacy_path.display(),
+                            path.display()
+                        );
+                    }
+                    return settings;
+                }
+            }
+        }
+
+        Self::default()
     }
 
     fn normalize_paths(&mut self) {
@@ -133,6 +300,18 @@ impl AppSettings {
             .map(|s| s.trim())
             .filter(|s| matches!(*s, "en" | "zh"))
             .map(|s| s.to_string());
+
+        self.claude_config_dir =
+            migrate_legacy_default_override(self.claude_config_dir.take(), Path::new(".claude"));
+        self.codex_config_dir =
+            migrate_legacy_default_override(self.codex_config_dir.take(), Path::new(".codex"));
+        self.gemini_config_dir =
+            migrate_legacy_default_override(self.gemini_config_dir.take(), Path::new(".gemini"));
+        let opencode_default_dir = Path::new(".config").join("opencode");
+        self.opencode_config_dir = migrate_legacy_default_override(
+            self.opencode_config_dir.take(),
+            opencode_default_dir.as_path(),
+        );
     }
 
     pub fn load() -> Self {
@@ -143,39 +322,13 @@ impl AppSettings {
                 return Self::default();
             }
         };
-        if let Ok(content) = fs::read_to_string(&path) {
-            match serde_json::from_str::<AppSettings>(&content) {
-                Ok(mut settings) => {
-                    settings.normalize_paths();
-                    settings
-                }
-                Err(err) => {
-                    log::warn!(
-                        "解析设置文件失败，将使用默认设置。路径: {}, 错误: {}",
-                        path.display(),
-                        err
-                    );
-                    Self::default()
-                }
-            }
-        } else {
-            Self::default()
-        }
+        let legacy_path = get_legacy_service_settings_path();
+        Self::load_with_fallback_paths(&path, legacy_path.as_deref())
     }
 
     pub fn save(&self) -> Result<(), AppError> {
-        let mut normalized = self.clone();
-        normalized.normalize_paths();
         let path = Self::settings_path()?;
-
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| AppError::io(parent, e))?;
-        }
-
-        let json = serde_json::to_string_pretty(&normalized)
-            .map_err(|e| AppError::JsonSerialize { source: e })?;
-        atomic_write(&path, json.as_bytes())?;
-        Ok(())
+        self.save_to_path(&path)
     }
 }
 
@@ -185,21 +338,7 @@ fn settings_store() -> &'static RwLock<AppSettings> {
 }
 
 fn resolve_override_path(raw: &str) -> PathBuf {
-    if raw == "~" {
-        if let Some(home) = get_home_dir() {
-            return home;
-        }
-    } else if let Some(stripped) = raw.strip_prefix("~/") {
-        if let Some(home) = get_home_dir() {
-            return home.join(stripped);
-        }
-    } else if let Some(stripped) = raw.strip_prefix("~\\") {
-        if let Some(home) = get_home_dir() {
-            return home.join(stripped);
-        }
-    }
-
-    PathBuf::from(raw)
+    resolve_override_path_with_home(raw, get_preferred_home_dir())
 }
 
 pub fn get_settings() -> AppSettings {
@@ -275,4 +414,121 @@ pub fn get_opencode_override_dir() -> Option<PathBuf> {
         .opencode_config_dir
         .as_ref()
         .map(|p| resolve_override_path(p))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+    use std::{env, fs};
+    use tempfile::tempdir;
+
+    struct EnvGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let original = env::var(key).ok();
+            env::set_var(key, value);
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            if let Some(ref original) = self.original {
+                env::set_var(self.key, original);
+            } else {
+                env::remove_var(self.key);
+            }
+        }
+    }
+
+    #[test]
+    fn prefers_account_home_when_web_server_homes_diverge() {
+        let service_home = Some(PathBuf::from("/srv/cc-switch-home"));
+        let account_home = Some(PathBuf::from("/root"));
+
+        let preferred = select_preferred_home_dir(service_home, account_home, true)
+            .expect("preferred home should resolve");
+
+        assert_eq!(preferred, PathBuf::from("/root"));
+        assert_eq!(
+            settings_path_for_home(&preferred),
+            PathBuf::from("/root/.cc-switch/settings.json")
+        );
+    }
+
+    #[test]
+    fn expands_tilde_using_preferred_home() {
+        let resolved =
+            resolve_override_path_with_home("~/.codex", Some(PathBuf::from("/home/test-user")));
+
+        assert_eq!(resolved, PathBuf::from("/home/test-user/.codex"));
+    }
+
+    #[test]
+    fn migrates_legacy_default_override_to_preferred_home() {
+        let migrated = migrate_legacy_default_override_with_homes(
+            Some("/srv/cc-switch-home/.codex".to_string()),
+            Path::new(".codex"),
+            Some(PathBuf::from("/srv/cc-switch-home")),
+            Some(PathBuf::from("/root")),
+            true,
+        );
+
+        assert_eq!(migrated.as_deref(), Some("/root/.codex"));
+    }
+
+    #[test]
+    #[serial]
+    fn loads_legacy_service_settings_when_preferred_settings_missing() {
+        let service_home_dir = tempdir().expect("service home temp dir");
+        let account_home_dir = tempdir().expect("account home temp dir");
+        let service_home = service_home_dir.path().to_string_lossy().to_string();
+        let account_home = account_home_dir.path().to_string_lossy().to_string();
+        let legacy_codex_dir = PathBuf::from(&service_home).join(".codex");
+        let legacy_codex_dir_str = legacy_codex_dir.to_string_lossy().to_string();
+
+        let _home_guard = EnvGuard::set("HOME", &service_home);
+
+        let legacy_settings_path = PathBuf::from(&service_home)
+            .join(".cc-switch")
+            .join("settings.json");
+        fs::create_dir_all(legacy_settings_path.parent().expect("legacy parent"))
+            .expect("create legacy settings dir");
+        fs::write(
+            &legacy_settings_path,
+            format!(
+                "{{\n  \"showInTray\": true,\n  \"minimizeToTrayOnClose\": true,\n  \"codexConfigDir\": \"{}\"\n}}",
+                legacy_codex_dir_str
+            ),
+        )
+        .expect("write legacy settings");
+
+        let primary_settings_path = PathBuf::from(&account_home)
+            .join(".cc-switch")
+            .join("settings.json");
+        let loaded = AppSettings::load_with_fallback_paths(
+            &primary_settings_path,
+            Some(&legacy_settings_path),
+        );
+
+        assert_eq!(
+            loaded.codex_config_dir.as_deref(),
+            Some(legacy_codex_dir_str.as_str())
+        );
+        assert!(
+            primary_settings_path.exists(),
+            "migrated settings should be written"
+        );
+
+        let migrated = fs::read_to_string(primary_settings_path).expect("read migrated settings");
+        assert!(
+            migrated.contains(legacy_codex_dir_str.as_str()),
+            "fallback should preserve legacy settings content while migrating file location"
+        );
+    }
 }

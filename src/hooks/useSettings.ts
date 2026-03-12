@@ -9,6 +9,7 @@ import { useSettingsForm, type SettingsFormState } from "./useSettingsForm";
 import {
   useDirectorySettings,
   type ResolvedDirectories,
+  type ResolvedDirectoryInfoMap,
 } from "./useDirectorySettings";
 import { useSettingsMetadata } from "./useSettingsMetadata";
 
@@ -25,6 +26,7 @@ export interface UseSettingsResult {
   isPortable: boolean;
   appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
+  resolvedDirInfo: ResolvedDirectoryInfoMap;
   requiresRestart: boolean;
   updateSettings: (updates: Partial<SettingsFormState>) => void;
   updateDirectory: (app: AppId, value?: string) => void;
@@ -40,6 +42,7 @@ export interface UseSettingsResult {
 }
 
 export type { SettingsFormState, ResolvedDirectories };
+export type { ResolvedDirectoryInfoMap };
 
 const sanitizeDir = (value?: string | null): string | undefined => {
   if (!value) return undefined;
@@ -73,6 +76,7 @@ export function useSettings(): UseSettingsResult {
   const {
     appConfigDir,
     resolvedDirs,
+    resolvedDirInfo,
     isLoading: isDirectoryLoading,
     initialAppConfigDir,
     updateDirectory,
@@ -220,6 +224,7 @@ export function useSettings(): UseSettingsResult {
     isPortable,
     appConfigDir,
     resolvedDirs,
+    resolvedDirInfo,
     requiresRestart,
     updateSettings,
     updateDirectory,

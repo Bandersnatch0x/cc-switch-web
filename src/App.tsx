@@ -69,6 +69,7 @@ async function validateWebCredentials(url: string): Promise<boolean> {
 }
 
 const ACTIVE_APP_STORAGE_KEY = "cc-switch:active-app";
+const CONFIG_DIR_WARNING_SHOWN_KEY = "cc-switch:config-dir-warning";
 
 function isSupportedAppId(value: unknown): value is AppId {
   return SUPPORTED_APPS.some((app) => app.id === value);
@@ -112,6 +113,7 @@ function AppContent() {
     providers,
   );
   const lastFailoverCheckRef = useRef<string | null>(null);
+  const configDirWarningRef = useRef<Set<string>>(new Set());
 
   const handleSwitchApp = useCallback((app: AppId) => {
     setActiveApp(app);
@@ -186,6 +188,64 @@ function AppContent() {
 
     checkEnvOnStartup();
   }, []);
+
+  useEffect(() => {
+    if (!isWeb()) return;
+
+    let cancelled = false;
+
+    const loadConfigDirInfo = async () => {
+      try {
+        const info = await settingsApi.getConfigDirInfo(activeApp);
+        if (cancelled || !info.homeMismatch || info.source === "override") {
+          return;
+        }
+
+        const warningKey = `${activeApp}:${info.source}:${info.dir}`;
+        if (configDirWarningRef.current.has(warningKey)) {
+          return;
+        }
+
+        configDirWarningRef.current.add(warningKey);
+        try {
+          const stored = window.sessionStorage.getItem(
+            CONFIG_DIR_WARNING_SHOWN_KEY,
+          );
+          if (stored?.split("|").includes(warningKey)) {
+            return;
+          }
+          const nextValue = stored ? `${stored}|${warningKey}` : warningKey;
+          window.sessionStorage.setItem(CONFIG_DIR_WARNING_SHOWN_KEY, nextValue);
+        } catch {
+          // ignore session storage failures
+        }
+
+        toast.warning(
+          t("notifications.webHomeMismatchTitle", {
+            defaultValue: "检测到配置目录偏差",
+          }),
+          {
+            description: t("notifications.webHomeMismatch", {
+              defaultValue:
+                "Web 服务 HOME ({{serviceHome}}) 与账号 HOME ({{accountHome}}) 不一致；当前 {{appName}} 会写入 {{path}}。",
+              serviceHome: info.serviceHome ?? "-",
+              accountHome: info.accountHome ?? "-",
+              appName: t(`apps.${activeApp}`, { defaultValue: activeApp }),
+              path: info.dir,
+            }),
+            duration: 7000,
+          },
+        );
+      } catch (error) {
+        console.warn("[App] Failed to load config dir info", error);
+      }
+    };
+
+    void loadConfigDirInfo();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeApp, t]);
 
   // 切换应用时检测当前应用的环境变量冲突
   useEffect(() => {

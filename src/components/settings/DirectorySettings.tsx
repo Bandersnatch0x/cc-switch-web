@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import type { AppId } from "@/lib/api";
 import type { ResolvedDirectories } from "@/hooks/useSettings";
+import type { ConfigDirInfo } from "@/lib/api/settings";
 
 interface DirectorySettingsProps {
   appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
+  resolvedDirInfo: Partial<Record<AppId, ConfigDirInfo>>;
   onAppConfigChange: (value?: string) => void;
   onBrowseAppConfig: () => Promise<void>;
   onResetAppConfig: () => Promise<void>;
@@ -24,6 +26,7 @@ interface DirectorySettingsProps {
 export function DirectorySettings({
   appConfigDir,
   resolvedDirs,
+  resolvedDirInfo,
   onAppConfigChange,
   onBrowseAppConfig,
   onResetAppConfig,
@@ -105,6 +108,7 @@ export function DirectorySettings({
           description={t("settings.claudeConfigDirDescription")}
           value={claudeDir}
           resolvedValue={resolvedDirs.claude}
+          dirInfo={resolvedDirInfo.claude}
           placeholder={t("settings.browsePlaceholderClaude")}
           onChange={(val) => onDirectoryChange("claude", val)}
           onBrowse={() => onBrowseDirectory("claude")}
@@ -116,6 +120,7 @@ export function DirectorySettings({
           description={t("settings.codexConfigDirDescription")}
           value={codexDir}
           resolvedValue={resolvedDirs.codex}
+          dirInfo={resolvedDirInfo.codex}
           placeholder={t("settings.browsePlaceholderCodex")}
           onChange={(val) => onDirectoryChange("codex", val)}
           onBrowse={() => onBrowseDirectory("codex")}
@@ -127,6 +132,7 @@ export function DirectorySettings({
           description={t("settings.geminiConfigDirDescription")}
           value={geminiDir}
           resolvedValue={resolvedDirs.gemini}
+          dirInfo={resolvedDirInfo.gemini}
           placeholder={t("settings.browsePlaceholderGemini")}
           onChange={(val) => onDirectoryChange("gemini", val)}
           onBrowse={() => onBrowseDirectory("gemini")}
@@ -159,6 +165,7 @@ interface DirectoryInputProps {
   description?: string;
   value?: string;
   resolvedValue: string;
+  dirInfo?: ConfigDirInfo;
   placeholder?: string;
   onChange: (value?: string) => void;
   onBrowse: () => Promise<void>;
@@ -170,6 +177,7 @@ function DirectoryInput({
   description,
   value,
   resolvedValue,
+  dirInfo,
   placeholder,
   onChange,
   onBrowse,
@@ -215,6 +223,23 @@ function DirectoryInput({
           <Undo2 className="h-4 w-4" />
         </Button>
       </div>
+      <p className="text-[11px] text-muted-foreground break-all">
+        {t("settings.currentWriteTarget", {
+          defaultValue: "当前实际写入路径：{{path}}",
+          path: dirInfo?.dir || resolvedValue || "-",
+        })}
+      </p>
+      {dirInfo?.homeMismatch && dirInfo.source !== "override" ? (
+        <p className="text-[11px] text-amber-600 dark:text-amber-500 break-all">
+          {t("settings.homeMismatchHint", {
+            defaultValue:
+              "检测到 Web 服务 HOME ({{serviceHome}}) 与账号 HOME ({{accountHome}}) 不一致；当前会写入 {{path}}。如需其他路径，请在这里显式覆盖。",
+            serviceHome: dirInfo.serviceHome ?? "-",
+            accountHome: dirInfo.accountHome ?? "-",
+            path: dirInfo.dir,
+          })}
+        </p>
+      ) : null}
     </div>
   );
 }

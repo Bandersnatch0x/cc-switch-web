@@ -41,6 +41,7 @@ export function SettingsDialog({
     isPortable,
     appConfigDir,
     resolvedDirs,
+    resolvedDirInfo,
     updateSettings,
     updateDirectory,
     updateAppConfigDir,
@@ -222,6 +223,7 @@ export function SettingsDialog({
                     <DirectorySettings
                       appConfigDir={appConfigDir}
                       resolvedDirs={resolvedDirs}
+                      resolvedDirInfo={resolvedDirInfo}
                       onAppConfigChange={updateAppConfigDir}
                       onBrowseAppConfig={browseAppConfigDir}
                       onResetAppConfig={resetAppConfigDir}

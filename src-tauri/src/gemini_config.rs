@@ -1,4 +1,4 @@
-use crate::config::{get_home_dir, write_text_file};
+use crate::config::{get_client_config_dir_info, get_client_config_dir_path, write_text_file};
 use crate::error::AppError;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -7,12 +7,11 @@ use std::path::PathBuf;
 
 /// 获取 Gemini 配置目录路径（支持设置覆盖）
 pub fn get_gemini_dir() -> Result<PathBuf, AppError> {
-    if let Some(custom) = crate::settings::get_gemini_override_dir() {
-        return Ok(custom);
-    }
+    get_client_config_dir_path(crate::settings::get_gemini_override_dir(), ".gemini")
+}
 
-    let home = get_home_dir().ok_or_else(|| AppError::Config("无法获取用户主目录".into()))?;
-    Ok(home.join(".gemini"))
+pub fn get_gemini_dir_info() -> Result<crate::config::ConfigDirInfo, AppError> {
+    get_client_config_dir_info(crate::settings::get_gemini_override_dir(), ".gemini")
 }
 
 /// 获取 Gemini .env 文件路径

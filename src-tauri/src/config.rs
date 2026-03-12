@@ -32,14 +32,162 @@ pub fn get_home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
-/// 获取 Claude Code 配置目录路径
-pub fn get_claude_config_dir() -> Result<PathBuf, AppError> {
-    if let Some(custom) = crate::settings::get_claude_override_dir() {
-        return Ok(custom);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConfigDirSource {
+    Override,
+    ServiceHomeDefault,
+    AccountHomeFallback,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigDirInfo {
+    pub dir: String,
+    pub source: ConfigDirSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub override_dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service_home: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_home: Option<String>,
+    #[serde(default)]
+    pub home_mismatch: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedConfigDir {
+    path: PathBuf,
+    info: ConfigDirInfo,
+}
+
+#[cfg(unix)]
+fn parse_passwd_home_dir(passwd_content: &str, username: &str) -> Option<PathBuf> {
+    passwd_content.lines().find_map(|line| {
+        let mut parts = line.split(':');
+        let name = parts.next()?.trim();
+        if name != username {
+            return None;
+        }
+
+        let _password = parts.next()?;
+        let _uid = parts.next()?;
+        let _gid = parts.next()?;
+        let _gecos = parts.next()?;
+        let home = parts.next()?.trim();
+        if home.is_empty() {
+            return None;
+        }
+
+        Some(PathBuf::from(home))
+    })
+}
+
+#[cfg(unix)]
+pub fn get_account_home_dir() -> Option<PathBuf> {
+    let username = std::env::var("USER")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            std::env::var("LOGNAME")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })?;
+    let passwd = fs::read_to_string("/etc/passwd").ok()?;
+    parse_passwd_home_dir(&passwd, username.trim())
+}
+
+#[cfg(not(unix))]
+pub fn get_account_home_dir() -> Option<PathBuf> {
+    None
+}
+
+fn resolve_client_config_dir_with_homes(
+    override_dir: Option<PathBuf>,
+    folder_name: &str,
+    service_home: Option<PathBuf>,
+    account_home: Option<PathBuf>,
+    prefer_account_home: bool,
+) -> Result<ResolvedConfigDir, AppError> {
+    let home_mismatch = matches!(
+        (&service_home, &account_home),
+        (Some(service), Some(account)) if service != account
+    );
+
+    if let Some(custom) = override_dir {
+        let dir = custom.to_string_lossy().to_string();
+        return Ok(ResolvedConfigDir {
+            path: custom,
+            info: ConfigDirInfo {
+                dir: dir.clone(),
+                source: ConfigDirSource::Override,
+                override_dir: Some(dir),
+                service_home: service_home.map(|path| path.to_string_lossy().to_string()),
+                account_home: account_home.map(|path| path.to_string_lossy().to_string()),
+                home_mismatch,
+            },
+        });
     }
 
-    let home = get_home_dir().ok_or_else(|| AppError::Config("无法获取用户主目录".into()))?;
-    Ok(home.join(".claude"))
+    let (base_home, source) = match (&service_home, &account_home) {
+        (Some(service), Some(account)) if prefer_account_home && service != account => {
+            (account.clone(), ConfigDirSource::AccountHomeFallback)
+        }
+        (Some(service), _) => (service.clone(), ConfigDirSource::ServiceHomeDefault),
+        (None, Some(account)) => (account.clone(), ConfigDirSource::AccountHomeFallback),
+        (None, None) => {
+            return Err(AppError::Config("无法获取用户主目录".into()));
+        }
+    };
+
+    let resolved = base_home.join(folder_name);
+    Ok(ResolvedConfigDir {
+        path: resolved.clone(),
+        info: ConfigDirInfo {
+            dir: resolved.to_string_lossy().to_string(),
+            source,
+            override_dir: None,
+            service_home: service_home.map(|path| path.to_string_lossy().to_string()),
+            account_home: account_home.map(|path| path.to_string_lossy().to_string()),
+            home_mismatch,
+        },
+    })
+}
+
+fn resolve_client_config_dir(
+    override_dir: Option<PathBuf>,
+    folder_name: &str,
+) -> Result<ResolvedConfigDir, AppError> {
+    resolve_client_config_dir_with_homes(
+        override_dir,
+        folder_name,
+        get_home_dir(),
+        get_account_home_dir(),
+        cfg!(feature = "web-server"),
+    )
+}
+
+pub fn get_client_config_dir_path(
+    override_dir: Option<PathBuf>,
+    folder_name: &str,
+) -> Result<PathBuf, AppError> {
+    Ok(resolve_client_config_dir(override_dir, folder_name)?.path)
+}
+
+pub fn get_client_config_dir_info(
+    override_dir: Option<PathBuf>,
+    folder_name: &str,
+) -> Result<ConfigDirInfo, AppError> {
+    Ok(resolve_client_config_dir(override_dir, folder_name)?.info)
+}
+
+/// 获取 Claude Code 配置目录路径
+pub fn get_claude_config_dir() -> Result<PathBuf, AppError> {
+    get_client_config_dir_path(crate::settings::get_claude_override_dir(), ".claude")
+}
+
+pub fn get_claude_config_dir_info() -> Result<ConfigDirInfo, AppError> {
+    get_client_config_dir_info(crate::settings::get_claude_override_dir(), ".claude")
 }
 
 /// 默认 Claude MCP 配置文件路径 (~/.claude.json)
@@ -104,19 +252,11 @@ pub fn get_app_config_path() -> Result<PathBuf, AppError> {
 }
 
 fn get_codex_config_dir_for_permissions() -> Option<PathBuf> {
-    if let Some(custom) = crate::settings::get_codex_override_dir() {
-        return Some(custom);
-    }
-
-    get_home_dir().map(|home| home.join(".codex"))
+    get_client_config_dir_path(crate::settings::get_codex_override_dir(), ".codex").ok()
 }
 
 fn get_gemini_config_dir_for_permissions() -> Option<PathBuf> {
-    if let Some(custom) = crate::settings::get_gemini_override_dir() {
-        return Some(custom);
-    }
-
-    get_home_dir().map(|home| home.join(".gemini"))
+    get_client_config_dir_path(crate::settings::get_gemini_override_dir(), ".gemini").ok()
 }
 
 fn should_enforce_private_permissions(path: &Path) -> bool {

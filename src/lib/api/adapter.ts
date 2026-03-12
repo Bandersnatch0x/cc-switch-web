@@ -911,6 +911,13 @@ export function commandToEndpoint(
       const app = requireArg(args, "app", cmd);
       return { method: "GET", url: `${apiBase}/config/${encode(app)}/dir` };
     }
+    case "get_config_dir_info": {
+      const app = requireArg(args, "app", cmd);
+      return {
+        method: "GET",
+        url: `${apiBase}/config/${encode(app)}/dir-info`,
+      };
+    }
     case "open_config_folder": {
       const app = requireArg(args, "app", cmd);
       return { method: "POST", url: `${apiBase}/config/${encode(app)}/open` };

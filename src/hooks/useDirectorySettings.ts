@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { settingsApi, type AppId } from "@/lib/api";
+import type { ConfigDirInfo } from "@/lib/api/settings";
 import type { SettingsFormState } from "./useSettingsForm";
 import { isWeb } from "@/lib/api/adapter";
 
@@ -12,6 +13,12 @@ export interface ResolvedDirectories {
   claude: string;
   codex: string;
   gemini: string;
+}
+
+export interface ResolvedDirectoryInfoMap {
+  claude?: ConfigDirInfo;
+  codex?: ConfigDirInfo;
+  gemini?: ConfigDirInfo;
 }
 
 const sanitizeDir = (value?: string | null): string | undefined => {
@@ -92,6 +99,7 @@ export interface UseDirectorySettingsProps {
 export interface UseDirectorySettingsResult {
   appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
+  resolvedDirInfo: ResolvedDirectoryInfoMap;
   isLoading: boolean;
   initialAppConfigDir?: string;
   updateDirectory: (app: AppId, value?: string) => void;
@@ -132,6 +140,9 @@ export function useDirectorySettings({
     codex: "",
     gemini: "",
   });
+  const [resolvedDirInfo, setResolvedDirInfo] = useState<ResolvedDirectoryInfoMap>(
+    {},
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   const defaultsRef = useRef<ResolvedDirectories>({
@@ -147,22 +158,36 @@ export function useDirectorySettings({
     let active = true;
     setIsLoading(true);
 
+    const loadConfigDirInfo = async (app: AppId): Promise<ConfigDirInfo> => {
+      const maybeGetConfigDirInfo = (settingsApi as { getConfigDirInfo?: (appId: AppId) => Promise<ConfigDirInfo> }).getConfigDirInfo;
+      if (typeof maybeGetConfigDirInfo === "function") {
+        return await maybeGetConfigDirInfo(app);
+      }
+
+      const dir = await settingsApi.getConfigDir(app);
+      return {
+        dir,
+        source: "service-home-default",
+        homeMismatch: false,
+      };
+    };
+
     const load = async () => {
       try {
         const [
           overrideRaw,
-          claudeDir,
-          codexDir,
-          geminiDir,
+          claudeInfo,
+          codexInfo,
+          geminiInfo,
           defaultAppConfig,
           defaultClaudeDir,
           defaultCodexDir,
           defaultGeminiDir,
         ] = await Promise.all([
           settingsApi.getAppConfigDirOverride(),
-          settingsApi.getConfigDir("claude"),
-          settingsApi.getConfigDir("codex"),
-          settingsApi.getConfigDir("gemini"),
+          loadConfigDirInfo("claude"),
+          loadConfigDirInfo("codex"),
+          loadConfigDirInfo("gemini"),
           computeDefaultAppConfigDir(),
           computeDefaultConfigDir("claude"),
           computeDefaultConfigDir("codex"),
@@ -182,12 +207,17 @@ export function useDirectorySettings({
 
         setAppConfigDir(normalizedOverride);
         initialAppConfigDirRef.current = normalizedOverride;
+        setResolvedDirInfo({
+          claude: claudeInfo,
+          codex: codexInfo,
+          gemini: geminiInfo,
+        });
 
         setResolvedDirs({
           appConfig: normalizedOverride ?? defaultsRef.current.appConfig,
-          claude: claudeDir || defaultsRef.current.claude,
-          codex: codexDir || defaultsRef.current.codex,
-          gemini: geminiDir || defaultsRef.current.gemini,
+          claude: claudeInfo.dir || defaultsRef.current.claude,
+          codex: codexInfo.dir || defaultsRef.current.codex,
+          gemini: geminiInfo.dir || defaultsRef.current.gemini,
         });
       } catch (error) {
         console.error(
@@ -393,6 +423,7 @@ export function useDirectorySettings({
   return {
     appConfigDir,
     resolvedDirs,
+    resolvedDirInfo,
     isLoading,
     initialAppConfigDir: initialAppConfigDirRef.current,
     updateDirectory,

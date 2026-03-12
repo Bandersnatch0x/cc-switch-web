@@ -6,6 +6,33 @@ import type { Provider, Settings } from "@/types";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import generateUUID from "@/utils/uuid";
 
+const getPathSeparator = (dir: string): string => {
+  if (dir.includes("\\") && !dir.includes("/")) return "\\";
+  return "/";
+};
+
+const joinDisplayPath = (dir: string, fileName: string): string => {
+  const trimmed = dir.trim();
+  if (!trimmed) return fileName;
+  if (trimmed.endsWith("/") || trimmed.endsWith("\\")) {
+    return `${trimmed}${fileName}`;
+  }
+  return `${trimmed}${getPathSeparator(trimmed)}${fileName}`;
+};
+
+const getLiveConfigPath = (appId: AppId, dir: string): string => {
+  switch (appId) {
+    case "claude":
+      return joinDisplayPath(dir, "settings.json");
+    case "codex":
+      return joinDisplayPath(dir, "config.toml");
+    case "gemini":
+      return joinDisplayPath(dir, ".env");
+    default:
+      return dir;
+  }
+};
+
 export const useAddProviderMutation = (appId: AppId) => {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -59,12 +86,43 @@ export const useUpdateProviderMutation = (appId: AppId) => {
       await providersApi.update(provider, appId);
       return provider;
     },
-    onSuccess: async () => {
+    onSuccess: async (provider) => {
       await queryClient.invalidateQueries({ queryKey: ["providers", appId] });
+
+      try {
+        const currentProviderId = await providersApi.getCurrent(appId);
+        if (currentProviderId === provider.id) {
+          const info = await settingsApi.getConfigDirInfo(appId);
+          toast.success(
+            t("notifications.updateSuccess", {
+              defaultValue: "供应商更新成功",
+            }),
+            {
+              description: t("notifications.updateCurrentProviderWithPath", {
+                defaultValue: "当前 provider 已写入 {{path}}。",
+                path: getLiveConfigPath(appId, info.dir),
+              }),
+            },
+          );
+          return;
+        }
+      } catch (error) {
+        console.warn(
+          "[mutations] Failed to resolve current live config path after update",
+          error,
+        );
+      }
+
       toast.success(
         t("notifications.updateSuccess", {
           defaultValue: "供应商更新成功",
         }),
+        {
+          description: t("notifications.updateStoredOnly", {
+            defaultValue:
+              "仅更新了配置库；切换为当前 provider 后才会写入 live 配置。",
+          }),
+        },
       );
     },
     onError: (error: Error) => {
@@ -137,11 +195,27 @@ export const useSwitchProviderMutation = (appId: AppId) => {
         );
       }
 
-      toast.success(
-        t("notifications.switchSuccess", {
-          defaultValue: "切换供应商成功",
+      let description: string | undefined;
+      try {
+        const info = await settingsApi.getConfigDirInfo(appId);
+        description = t("notifications.switchSuccessWithPath", {
+          defaultValue:
+            "已写入 {{path}}。如未生效，请重启 {{appName}} 终端。",
+          path: getLiveConfigPath(appId, info.dir),
           appName: t(`apps.${appId}`, { defaultValue: appId }),
+        });
+      } catch (error) {
+        console.warn(
+          "[mutations] Failed to resolve live config path after switch",
+          error,
+        );
+      }
+
+      toast.success(
+        t("notifications.switchSuccessTitle", {
+          defaultValue: "切换供应商成功",
         }),
+        description ? { description } : undefined,
       );
     },
     onError: (error: Error) => {

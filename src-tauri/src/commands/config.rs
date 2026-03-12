@@ -6,7 +6,7 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::app_config::AppType;
 use crate::codex_config;
-use crate::config::{self, get_claude_settings_path, ConfigStatus};
+use crate::config::{self, get_claude_settings_path, ConfigDirInfo, ConfigStatus};
 
 /// 获取 Claude Code 配置状态
 #[tauri::command]
@@ -61,6 +61,16 @@ pub async fn get_config_dir(app: String) -> Result<String, String> {
     };
 
     Ok(dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn get_config_dir_info(app: String) -> Result<ConfigDirInfo, String> {
+    match AppType::parse_supported(&app).map_err(|e| e.to_string())? {
+        AppType::Claude => config::get_claude_config_dir_info().map_err(|e| e.to_string()),
+        AppType::Codex => codex_config::get_codex_config_dir_info().map_err(|e| e.to_string()),
+        AppType::Gemini => crate::gemini_config::get_gemini_dir_info().map_err(|e| e.to_string()),
+        AppType::Opencode | AppType::Omo => Err(format!("应用暂未支持: {app}")),
+    }
 }
 
 /// 打开配置文件夹

@@ -120,6 +120,7 @@ fn config_routes() -> Router<SharedState> {
         )
         .route("/import", post(config::import_config))
         .route("/:app/dir", get(config::get_config_dir))
+        .route("/:app/dir-info", get(config::get_config_dir_info))
         .route("/:app/open", post(config::open_config_folder))
         .route(
             "/claude-code/path",

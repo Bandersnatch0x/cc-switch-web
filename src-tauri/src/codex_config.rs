@@ -2,7 +2,8 @@
 use std::path::PathBuf;
 
 use crate::config::{
-    atomic_write, delete_file, get_home_dir, sanitize_provider_name, write_json_file,
+    atomic_write, delete_file, get_client_config_dir_info, get_client_config_dir_path,
+    sanitize_provider_name, write_json_file,
     write_text_file,
 };
 use crate::error::AppError;
@@ -12,12 +13,11 @@ use std::path::Path;
 
 /// 获取 Codex 配置目录路径
 pub fn get_codex_config_dir() -> Result<PathBuf, AppError> {
-    if let Some(custom) = crate::settings::get_codex_override_dir() {
-        return Ok(custom);
-    }
+    get_client_config_dir_path(crate::settings::get_codex_override_dir(), ".codex")
+}
 
-    let home = get_home_dir().ok_or_else(|| AppError::Config("无法获取用户主目录".into()))?;
-    Ok(home.join(".codex"))
+pub fn get_codex_config_dir_info() -> Result<crate::config::ConfigDirInfo, AppError> {
+    get_client_config_dir_info(crate::settings::get_codex_override_dir(), ".codex")
 }
 
 /// 获取 Codex auth.json 路径
