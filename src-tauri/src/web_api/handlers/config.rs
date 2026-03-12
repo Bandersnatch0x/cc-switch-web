@@ -179,7 +179,9 @@ pub async fn get_config_dir(Path(app): Path<String>) -> ApiResult<String> {
     Ok(Json(dir.to_string_lossy().to_string()))
 }
 
-pub async fn get_config_dir_info(Path(app): Path<String>) -> ApiResult<crate::config::ConfigDirInfo> {
+pub async fn get_config_dir_info(
+    Path(app): Path<String>,
+) -> ApiResult<crate::config::ConfigDirInfo> {
     let app_type = parse_app_type(&app)?;
     let info = match app_type {
         AppType::Claude => crate::config::get_claude_config_dir_info().map_err(ApiError::from)?,

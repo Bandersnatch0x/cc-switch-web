@@ -3,8 +3,7 @@ use std::path::PathBuf;
 
 use crate::config::{
     atomic_write, delete_file, get_client_config_dir_info, get_client_config_dir_path,
-    sanitize_provider_name, write_json_file,
-    write_text_file,
+    sanitize_provider_name, write_json_file, write_text_file,
 };
 use crate::error::AppError;
 use serde_json::Value;

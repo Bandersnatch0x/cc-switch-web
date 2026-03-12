@@ -531,8 +531,13 @@ mod tests {
         );
 
         let migrated = fs::read_to_string(primary_settings_path).expect("read migrated settings");
+        let migrated: serde_json::Value =
+            serde_json::from_str(&migrated).expect("parse migrated settings");
         assert!(
-            migrated.contains(legacy_codex_dir_str.as_str()),
+            migrated
+                .get("codexConfigDir")
+                .and_then(|value| value.as_str())
+                == Some(legacy_codex_dir_str.as_str()),
             "fallback should preserve legacy settings content while migrating file location"
         );
     }
