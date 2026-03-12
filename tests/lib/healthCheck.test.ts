@@ -133,6 +133,54 @@ describe("healthCheck API module", () => {
     });
   });
 
+  it("fetchAllHealthStatus merges groups and data when relay-pulse returns both", async () => {
+    const payload = {
+      meta: { period: "24h", count: 2 },
+      data: [
+        {
+          provider: "duckcoding",
+          provider_url: "https://duckcoding.com",
+          service: "cc",
+          category: "third_party",
+          current_status: { status: 1, latency: 90, timestamp: 1_710_000_500 },
+          timeline: [{ availability: 100 }],
+        },
+      ],
+      groups: [
+        {
+          provider: "88code",
+          service: "cx",
+          current_status: {
+            status: 2,
+            latency: 220,
+            timestamp: 1_710_000_400,
+          },
+          timeline: [{ availability: 75 }],
+        },
+      ],
+    };
+
+    mockRelayPulseResponse(payload);
+    const { fetchAllHealthStatus } = await importHealthCheck();
+
+    const result = await fetchAllHealthStatus();
+
+    expect(result.get("88code/cx")).toEqual<ProviderHealth>({
+      isHealthy: true,
+      status: "degraded",
+      latency: 220,
+      lastChecked: 1_710_000_400 * 1000,
+      availability: 75,
+    });
+    expect(result.get("duckcoding/cc")).toEqual<ProviderHealth>({
+      isHealthy: true,
+      status: "available",
+      latency: 90,
+      lastChecked: 1_710_000_500 * 1000,
+      availability: 100,
+    });
+  });
+
   it("checkProviderHealth returns provider health or fallback when missing", async () => {
     const payload = {
       meta: { period: "24h", count: 1 },

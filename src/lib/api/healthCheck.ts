@@ -4,9 +4,14 @@
  */
 
 import type { AppId } from "./types";
-import { buildWebAuthHeadersForUrl, invoke, isWeb } from "./adapter";
+import {
+  buildWebApiUrl,
+  buildWebAuthHeadersForUrl,
+  invoke,
+  isWeb,
+} from "./adapter";
 
-const RELAY_PULSE_API = "/api/health/status";
+const RELAY_PULSE_API_PATH = "/health/status";
 const CACHE_TTL = 60 * 1000; // 1 分钟缓存
 const HEALTHCHECK_TIMEOUT_MS = 10_000;
 
@@ -63,7 +68,13 @@ interface RelayPulseLayer {
 interface RelayPulseGroup {
   provider: string;
   service: string;
-  current_status?: number;
+  current_status?:
+    | number
+    | {
+        status?: number;
+        latency?: number;
+        timestamp?: number;
+      };
   timeline?: Array<{
     availability: number;
   }>;
@@ -161,6 +172,10 @@ function normalizeRelayPulseResponse(
 
   if (Array.isArray(payload.groups) && payload.groups.length > 0) {
     for (const group of payload.groups) {
+      if (!group?.provider || !group?.service) {
+        continue;
+      }
+
       const key = `${group.provider.toLowerCase()}/${group.service}`;
       const layers = Array.isArray(group.layers) ? group.layers : [];
 
@@ -179,16 +194,18 @@ function normalizeRelayPulseResponse(
         toProviderHealth(
           typeof group.current_status === "number"
             ? { status: group.current_status }
-            : undefined,
+            : group.current_status,
           group.timeline,
         ),
       );
     }
-
-    return nextCache;
   }
 
   for (const monitor of payload.data ?? []) {
+    if (!monitor?.provider || !monitor?.service) {
+      continue;
+    }
+
     const key = `${monitor.provider.toLowerCase()}/${monitor.service}`;
     mergeEntry(key, toProviderHealth(monitor.current_status, monitor.timeline));
   }
@@ -248,6 +265,7 @@ export async function fetchAllHealthStatus(): Promise<
         HEALTHCHECK_TIMEOUT_MS,
       );
     } else {
+      const endpoint = buildWebApiUrl(RELAY_PULSE_API_PATH);
       // Web 模式：通过内置 web-server 代理路由访问（支持 Basic Auth）
       const controller = new AbortController();
       const timer = setTimeout(
@@ -258,9 +276,9 @@ export async function fetchAllHealthStatus(): Promise<
       try {
         const headers: Record<string, string> = {
           Accept: "application/json",
-          ...buildWebAuthHeadersForUrl(RELAY_PULSE_API),
+          ...buildWebAuthHeadersForUrl(endpoint),
         };
-        const response = await fetch(RELAY_PULSE_API, {
+        const response = await fetch(endpoint, {
           headers,
           signal: controller.signal,
         });
@@ -276,9 +294,8 @@ export async function fetchAllHealthStatus(): Promise<
       }
     }
 
-    lastFetchTime = now;
-
     healthCache = normalizeRelayPulseResponse(data);
+    lastFetchTime = now;
     return healthCache;
   } catch (error) {
     if ((error as any)?.name === "AbortError") {

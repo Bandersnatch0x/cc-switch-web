@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WEB_AUTH_STORAGE_KEY } from "@/lib/api/adapter";
+import {
+  WEB_API_BASE_STORAGE_KEY,
+  WEB_AUTH_STORAGE_KEY,
+} from "@/lib/api/adapter";
 
 const importHealthCheckWeb = async () => {
   vi.resetModules();
@@ -30,6 +33,7 @@ beforeEach(() => {
   originalTauriInternals = (window as any).__TAURI_INTERNALS__;
   delete (window as any).__TAURI__;
   delete (window as any).__TAURI_INTERNALS__;
+  window.localStorage.clear();
   window.sessionStorage.clear();
 });
 
@@ -123,5 +127,40 @@ describe("healthCheck API module (web mode)", () => {
 
     expect(refreshed).toBe(first);
     expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it("uses the configured web API base for the relay-pulse proxy", async () => {
+    const payload = createRelayPulsePayload();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => payload,
+      } as Response);
+
+    window.localStorage.setItem(
+      WEB_API_BASE_STORAGE_KEY,
+      "https://10.0.0.2:8080/api",
+    );
+    window.sessionStorage.setItem(
+      WEB_AUTH_STORAGE_KEY,
+      JSON.stringify({
+        token: "encoded",
+        apiBase: "https://10.0.0.2:8080/api",
+      }),
+    );
+
+    const { fetchAllHealthStatus } = await importHealthCheckWeb();
+
+    await fetchAllHealthStatus();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://10.0.0.2:8080/api/health/status",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Basic encoded" }),
+      }),
+    );
   });
 });

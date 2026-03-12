@@ -45,9 +45,11 @@ export const useProvidersQuery = (
       let providers: Record<string, Provider> = {};
       let currentProviderId = "";
       let backupProviderId: string | null = null;
+      let providersLoaded = false;
 
       try {
         providers = await providersApi.getAll(appId);
+        providersLoaded = true;
       } catch (error) {
         console.error("获取供应商列表失败:", error);
       }
@@ -64,7 +66,7 @@ export const useProvidersQuery = (
         console.error("获取备用供应商失败:", error);
       }
 
-      if (Object.keys(providers).length === 0) {
+      if (providersLoaded && Object.keys(providers).length === 0) {
         try {
           const success = await providersApi.importDefault(appId);
           if (success) {
