@@ -73,7 +73,7 @@ fn migrate_legacy_default_override_with_homes(
     }
 
     let legacy_default = service_home.join(default_dir);
-    if PathBuf::from(&raw) == legacy_default {
+    if Path::new(&raw) == legacy_default.as_path() {
         return Some(
             preferred_home
                 .join(default_dir)
@@ -419,6 +419,7 @@ pub fn get_opencode_override_dir() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use serial_test::serial;
     use std::{env, fs};
     use tempfile::tempdir;
@@ -479,7 +480,9 @@ mod tests {
             true,
         );
 
-        assert_eq!(migrated.as_deref(), Some("/root/.codex"));
+        let expected = PathBuf::from("/root").join(".codex");
+        let expected = expected.to_string_lossy().to_string();
+        assert_eq!(migrated.as_deref(), Some(expected.as_str()));
     }
 
     #[test]
@@ -501,10 +504,12 @@ mod tests {
             .expect("create legacy settings dir");
         fs::write(
             &legacy_settings_path,
-            format!(
-                "{{\n  \"showInTray\": true,\n  \"minimizeToTrayOnClose\": true,\n  \"codexConfigDir\": \"{}\"\n}}",
-                legacy_codex_dir_str
-            ),
+            serde_json::to_string_pretty(&json!({
+                "showInTray": true,
+                "minimizeToTrayOnClose": true,
+                "codexConfigDir": legacy_codex_dir_str.clone(),
+            }))
+            .expect("serialize legacy settings"),
         )
         .expect("write legacy settings");
 

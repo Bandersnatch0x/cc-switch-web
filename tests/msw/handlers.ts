@@ -48,6 +48,17 @@ const withJson = async <T>(request: Request): Promise<T> => {
 
 const success = <T>(payload: T) => HttpResponse.json(payload as any);
 
+const getMockConfigDir = (app: AppId): string => {
+  switch (app) {
+    case "claude":
+      return "/default/claude";
+    case "codex":
+      return "/default/codex";
+    case "gemini":
+      return "/default/gemini";
+  }
+};
+
 export const handlers = [
   http.post(`${TAURI_ENDPOINT}/get_providers`, async ({ request }) => {
     const { app } = await withJson<{ app: AppId }>(request);
@@ -234,6 +245,17 @@ export const handlers = [
     success(getAppConfigDirOverride()),
   ),
 
+  http.post(`${TAURI_ENDPOINT}/get_config_dir_info`, async ({ request }) => {
+    const { app } = await withJson<{ app: AppId }>(request);
+    return success({
+      dir: getMockConfigDir(app),
+      source: "service-home-default",
+      homeMismatch: false,
+      serviceHome: "/home/mock",
+      accountHome: "/home/mock",
+    });
+  }),
+
   http.post(`${TAURI_ENDPOINT}/apply_claude_plugin_config`, async ({ request }) => {
     const { official } = await withJson<{ official: boolean }>(request);
     setSettings({ enableClaudePluginIntegration: !official });
@@ -242,7 +264,7 @@ export const handlers = [
 
   http.post(`${TAURI_ENDPOINT}/get_config_dir`, async ({ request }) => {
     const { app } = await withJson<{ app: AppId }>(request);
-    return success(app === "claude" ? "/default/claude" : "/default/codex");
+    return success(getMockConfigDir(app));
   }),
 
   http.post(`${TAURI_ENDPOINT}/is_portable_mode`, () => success(false)),

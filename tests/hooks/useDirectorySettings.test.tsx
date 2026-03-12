@@ -4,6 +4,7 @@ import { useDirectorySettings } from "@/hooks/useDirectorySettings";
 import type { SettingsFormState } from "@/hooks/useSettingsForm";
 
 const getAppConfigDirOverrideMock = vi.hoisted(() => vi.fn());
+const getConfigDirInfoMock = vi.hoisted(() => vi.fn());
 const getConfigDirMock = vi.hoisted(() => vi.fn());
 const selectConfigDirectoryMock = vi.hoisted(() => vi.fn());
 const setAppConfigDirOverrideMock = vi.hoisted(() => vi.fn());
@@ -15,6 +16,7 @@ const toastSuccessMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", () => ({
   settingsApi: {
     getAppConfigDirOverride: getAppConfigDirOverrideMock,
+    getConfigDirInfo: getConfigDirInfoMock,
     getConfigDir: getConfigDirMock,
     selectConfigDirectory: selectConfigDirectoryMock,
     setAppConfigDirOverride: setAppConfigDirOverrideMock,
@@ -55,12 +57,23 @@ describe("useDirectorySettings", () => {
 
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.clearAllMocks();
 
     homeDirMock.mockResolvedValue("/home/mock");
     joinMock.mockImplementation(async (...segments: string[]) => segments.join("/"));
 
     getAppConfigDirOverrideMock.mockResolvedValue(null);
+    getConfigDirInfoMock.mockImplementation(async (app: string) => ({
+      dir:
+        app === "claude"
+          ? "/remote/claude"
+          : app === "codex"
+            ? "/remote/codex"
+            : "/remote/gemini",
+      source: "service-home-default",
+      homeMismatch: false,
+    }));
     getConfigDirMock.mockImplementation(async (app: string) =>
       app === "claude"
         ? "/remote/claude"
@@ -86,6 +99,31 @@ describe("useDirectorySettings", () => {
       claude: "/remote/claude",
       codex: "/remote/codex",
       gemini: "/remote/gemini",
+    });
+  });
+
+  it("falls back to legacy config dir API when dir info request fails", async () => {
+    getConfigDirInfoMock.mockRejectedValue(new Error("missing dir info endpoint"));
+
+    const { result } = renderHook(() =>
+      useDirectorySettings({ settings: createSettings(), onUpdateSettings }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(getConfigDirMock).toHaveBeenCalledWith("claude");
+    expect(getConfigDirMock).toHaveBeenCalledWith("codex");
+    expect(getConfigDirMock).toHaveBeenCalledWith("gemini");
+    expect(result.current.resolvedDirs).toEqual({
+      appConfig: "/home/mock/.cc-switch",
+      claude: "/remote/claude",
+      codex: "/remote/codex",
+      gemini: "/remote/gemini",
+    });
+    expect(result.current.resolvedDirInfo.codex).toEqual({
+      dir: "/remote/codex",
+      source: "service-home-default",
+      homeMismatch: false,
     });
   });
 

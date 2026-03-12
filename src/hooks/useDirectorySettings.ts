@@ -159,9 +159,18 @@ export function useDirectorySettings({
     setIsLoading(true);
 
     const loadConfigDirInfo = async (app: AppId): Promise<ConfigDirInfo> => {
-      const maybeGetConfigDirInfo = (settingsApi as { getConfigDirInfo?: (appId: AppId) => Promise<ConfigDirInfo> }).getConfigDirInfo;
+      const maybeGetConfigDirInfo = (settingsApi as {
+        getConfigDirInfo?: (appId: AppId) => Promise<ConfigDirInfo>;
+      }).getConfigDirInfo;
       if (typeof maybeGetConfigDirInfo === "function") {
-        return await maybeGetConfigDirInfo(app);
+        try {
+          return await maybeGetConfigDirInfo(app);
+        } catch (error) {
+          console.warn(
+            `[useDirectorySettings] Falling back to legacy config dir API for ${app}`,
+            error,
+          );
+        }
       }
 
       const dir = await settingsApi.getConfigDir(app);

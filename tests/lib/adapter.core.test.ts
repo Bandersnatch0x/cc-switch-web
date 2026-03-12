@@ -635,6 +635,11 @@ describe("commandToEndpoint", () => {
         expected: { method: "GET", url: "/api/config/foo%20bar/dir" },
       },
       {
+        cmd: "get_config_dir_info",
+        args: { app: "foo bar" },
+        expected: { method: "GET", url: "/api/config/foo%20bar/dir-info" },
+      },
+      {
         cmd: "open_config_folder",
         args: { app: "claude" },
         expected: { method: "POST", url: "/api/config/claude/open" },
