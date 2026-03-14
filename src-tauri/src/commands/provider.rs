@@ -6,6 +6,11 @@ use crate::error::AppError;
 use crate::provider::Provider;
 use crate::services::{EndpointLatency, ProviderService, ProviderSortUpdate, SpeedtestService};
 use crate::store::AppState;
+use std::str::FromStr;
+
+fn parse_provider_app_type(app: &str) -> Result<AppType, String> {
+    AppType::from_str(app).map_err(|e| e.to_string())
+}
 
 /// 获取所有供应商
 #[tauri::command]
@@ -13,14 +18,14 @@ pub fn get_providers(
     state: State<'_, AppState>,
     app: String,
 ) -> Result<HashMap<String, Provider>, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::list(state.inner(), app_type).map_err(|e| e.to_string())
 }
 
 /// 获取当前供应商ID
 #[tauri::command]
 pub fn get_current_provider(state: State<'_, AppState>, app: String) -> Result<String, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::current(state.inner(), app_type).map_err(|e| e.to_string())
 }
 
@@ -30,7 +35,7 @@ pub fn get_backup_provider(
     state: State<'_, AppState>,
     app: String,
 ) -> Result<Option<String>, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::backup(state.inner(), app_type).map_err(|e| e.to_string())
 }
 
@@ -41,7 +46,7 @@ pub fn set_backup_provider(
     app: String,
     id: Option<String>,
 ) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::set_backup(state.inner(), app_type, id).map_err(|e| e.to_string())?;
     Ok(true)
 }
@@ -53,7 +58,7 @@ pub fn add_provider(
     app: String,
     provider: Provider,
 ) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::add(state.inner(), app_type, provider).map_err(|e| e.to_string())
 }
 
@@ -64,7 +69,7 @@ pub fn update_provider(
     app: String,
     provider: Provider,
 ) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::update(state.inner(), app_type, provider).map_err(|e| e.to_string())
 }
 
@@ -75,7 +80,7 @@ pub fn delete_provider(
     app: String,
     id: String,
 ) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::delete(state.inner(), app_type, &id)
         .map(|_| true)
         .map_err(|e| e.to_string())
@@ -101,7 +106,7 @@ pub fn switch_provider(
     app: String,
     id: String,
 ) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     switch_provider_internal(&state, app_type, &id)
         .map(|_| true)
         .map_err(|e| e.to_string())
@@ -122,7 +127,7 @@ pub fn import_default_config_test_hook(
 /// 导入当前配置为默认供应商
 #[tauri::command]
 pub fn import_default_config(state: State<'_, AppState>, app: String) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     import_default_config_internal(&state, app_type)
         .map(|_| true)
         .map_err(Into::into)
@@ -136,7 +141,7 @@ pub async fn queryProviderUsage(
     #[allow(non_snake_case)] providerId: String, // 使用 camelCase 匹配前端
     app: String,
 ) -> Result<crate::provider::UsageResult, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::query_usage(state.inner(), app_type, &providerId)
         .await
         .map_err(|e| e.to_string())
@@ -157,7 +162,7 @@ pub async fn testUsageScript(
     #[allow(non_snake_case)] accessToken: Option<String>,
     #[allow(non_snake_case)] userId: Option<String>,
 ) -> Result<crate::provider::UsageResult, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::test_usage_script(
         state.inner(),
         app_type,
@@ -176,7 +181,7 @@ pub async fn testUsageScript(
 /// 读取当前生效的配置内容
 #[tauri::command]
 pub fn read_live_provider_settings(app: String) -> Result<serde_json::Value, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::read_live_settings(app_type).map_err(|e| e.to_string())
 }
 
@@ -198,7 +203,7 @@ pub fn get_custom_endpoints(
     app: String,
     #[allow(non_snake_case)] providerId: String,
 ) -> Result<Vec<crate::settings::CustomEndpoint>, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::get_custom_endpoints(state.inner(), app_type, &providerId)
         .map_err(|e| e.to_string())
 }
@@ -211,7 +216,7 @@ pub fn add_custom_endpoint(
     #[allow(non_snake_case)] providerId: String,
     url: String,
 ) -> Result<(), String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::add_custom_endpoint(state.inner(), app_type, &providerId, url)
         .map_err(|e| e.to_string())
 }
@@ -224,7 +229,7 @@ pub fn remove_custom_endpoint(
     #[allow(non_snake_case)] providerId: String,
     url: String,
 ) -> Result<(), String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::remove_custom_endpoint(state.inner(), app_type, &providerId, url)
         .map_err(|e| e.to_string())
 }
@@ -237,7 +242,7 @@ pub fn update_endpoint_last_used(
     #[allow(non_snake_case)] providerId: String,
     url: String,
 ) -> Result<(), String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::update_endpoint_last_used(state.inner(), app_type, &providerId, url)
         .map_err(|e| e.to_string())
 }
@@ -249,6 +254,6 @@ pub fn update_providers_sort_order(
     app: String,
     updates: Vec<ProviderSortUpdate>,
 ) -> Result<bool, String> {
-    let app_type = AppType::parse_supported(&app).map_err(|e| e.to_string())?;
+    let app_type = parse_provider_app_type(&app)?;
     ProviderService::update_sort_order(state.inner(), app_type, updates).map_err(|e| e.to_string())
 }

@@ -17,6 +17,13 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("@/lib/api/adapter", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/adapter")>(
+    "@/lib/api/adapter",
+  );
+  return actual;
+});
+
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ open, children }: any) => (open ? <div data-testid="dialog-root">{children}</div> : null),
   DialogContent: ({ children }: any) => <div>{children}</div>,

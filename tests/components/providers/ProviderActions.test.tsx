@@ -86,6 +86,14 @@ describe("ProviderActions", () => {
     expect(props.onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it("hides usage action when usage is unsupported", () => {
+    renderActions({ showUsageActions: false });
+
+    expect(
+      screen.queryByRole("button", { name: "provider.configureUsage" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables delete styling and ignores clicks when current", async () => {
     const user = userEvent.setup();
     const props = renderActions({ isCurrent: true });

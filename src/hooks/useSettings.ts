@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { providersApi, settingsApi, type AppId } from "@/lib/api";
+import { providersApi, settingsApi } from "@/lib/api";
+import type { DirectoryAppId } from "@/config/apps";
 import { syncCurrentProvidersLiveSafe } from "@/utils/postChangeSync";
 import { useSettingsQuery, useSaveSettingsMutation } from "@/lib/query";
 import type { Settings } from "@/types";
@@ -29,11 +30,11 @@ export interface UseSettingsResult {
   resolvedDirInfo: ResolvedDirectoryInfoMap;
   requiresRestart: boolean;
   updateSettings: (updates: Partial<SettingsFormState>) => void;
-  updateDirectory: (app: AppId, value?: string) => void;
+  updateDirectory: (app: DirectoryAppId, value?: string) => void;
   updateAppConfigDir: (value?: string) => void;
-  browseDirectory: (app: AppId) => Promise<void>;
+  browseDirectory: (app: DirectoryAppId) => Promise<void>;
   browseAppConfigDir: () => Promise<void>;
-  resetDirectory: (app: AppId) => Promise<void>;
+  resetDirectory: (app: DirectoryAppId) => Promise<void>;
   resetAppConfigDir: () => Promise<void>;
   applyWslTemplate: (distro?: string) => void;
   saveSettings: () => Promise<SaveResult | null>;
@@ -109,6 +110,7 @@ export function useSettings(): UseSettingsResult {
       sanitizeDir(data?.claudeConfigDir),
       sanitizeDir(data?.codexConfigDir),
       sanitizeDir(data?.geminiConfigDir),
+      sanitizeDir(data?.opencodeConfigDir),
     );
     setRequiresRestart(false);
   }, [
@@ -128,16 +130,19 @@ export function useSettings(): UseSettingsResult {
       const sanitizedClaudeDir = sanitizeDir(settings.claudeConfigDir);
       const sanitizedCodexDir = sanitizeDir(settings.codexConfigDir);
       const sanitizedGeminiDir = sanitizeDir(settings.geminiConfigDir);
+      const sanitizedOpencodeDir = sanitizeDir(settings.opencodeConfigDir);
       const previousAppDir = initialAppConfigDir;
       const previousClaudeDir = sanitizeDir(data?.claudeConfigDir);
       const previousCodexDir = sanitizeDir(data?.codexConfigDir);
       const previousGeminiDir = sanitizeDir(data?.geminiConfigDir);
+      const previousOpencodeDir = sanitizeDir(data?.opencodeConfigDir);
 
       const payload: Settings = {
         ...settings,
         claudeConfigDir: sanitizedClaudeDir,
         codexConfigDir: sanitizedCodexDir,
         geminiConfigDir: sanitizedGeminiDir,
+        opencodeConfigDir: sanitizedOpencodeDir,
         language: settings.language,
       };
 
@@ -184,7 +189,14 @@ export function useSettings(): UseSettingsResult {
       const claudeDirChanged = sanitizedClaudeDir !== previousClaudeDir;
       const codexDirChanged = sanitizedCodexDir !== previousCodexDir;
       const geminiDirChanged = sanitizedGeminiDir !== previousGeminiDir;
-      if (claudeDirChanged || codexDirChanged || geminiDirChanged) {
+      const opencodeDirChanged =
+        sanitizedOpencodeDir !== previousOpencodeDir;
+      if (
+        claudeDirChanged ||
+        codexDirChanged ||
+        geminiDirChanged ||
+        opencodeDirChanged
+      ) {
         const syncResult = await syncCurrentProvidersLiveSafe();
         if (!syncResult.ok) {
           console.warn(

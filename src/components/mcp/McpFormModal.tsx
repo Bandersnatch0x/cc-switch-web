@@ -35,7 +35,7 @@ import {
   mcpServerToToml,
 } from "@/utils/tomlUtils";
 import { normalizeTomlText } from "@/utils/textNormalization";
-import { formatJSON, parseSmartMcpJson } from "@/utils/formatters";
+import { formatMcpJSON, parseSmartMcpJson } from "@/utils/formatters";
 import { useMcpValidation } from "./useMcpValidation";
 import { useUpsertMcpServer } from "@/hooks/useMcp";
 
@@ -61,7 +61,7 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
   onClose,
   existingIds = [],
   defaultFormat = "json",
-  defaultEnabledApps = ["claude", "codex", "gemini"],
+  defaultEnabledApps = ["claude", "codex", "gemini", "opencode"],
 }) => {
   const { t } = useTranslation();
   const { formatTomlError, validateTomlConfig, validateJsonConfig } =
@@ -93,15 +93,22 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
     claude: boolean;
     codex: boolean;
     gemini: boolean;
+    opencode: boolean;
   }>(() => {
     if (initialData?.apps) {
-      return { ...initialData.apps };
+      return {
+        claude: initialData.apps.claude ?? false,
+        codex: initialData.apps.codex ?? false,
+        gemini: initialData.apps.gemini ?? false,
+        opencode: initialData.apps.opencode ?? false,
+      };
     }
     // 新增模式：根据 defaultEnabledApps 设置初始值
     return {
       claude: defaultEnabledApps.includes("claude"),
       codex: defaultEnabledApps.includes("codex"),
       gemini: defaultEnabledApps.includes("gemini"),
+      opencode: defaultEnabledApps.includes("opencode"),
     };
   });
 
@@ -300,7 +307,7 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
     if (!formConfig.trim()) return;
 
     try {
-      const formatted = formatJSON(formConfig);
+      const formatted = formatMcpJSON(formConfig);
       setFormConfig(formatted);
       toast.success(t("common.formatSuccess"));
     } catch (error) {
@@ -638,6 +645,22 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
                     className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
                   >
                     {t("mcp.unifiedPanel.apps.gemini")}
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="enable-opencode"
+                    checked={enabledApps.opencode}
+                    onCheckedChange={(checked: boolean) =>
+                      setEnabledApps({ ...enabledApps, opencode: checked })
+                    }
+                  />
+                  <label
+                    htmlFor="enable-opencode"
+                    className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                  >
+                    {t("mcp.unifiedPanel.apps.opencode")}
                   </label>
                 </div>
               </div>

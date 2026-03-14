@@ -130,6 +130,13 @@ export const settingsApi = {
     }
   },
 
+  async updateWebCredentials(
+    username: string,
+    password: string,
+  ): Promise<boolean> {
+    return await invoke("update_web_credentials", { username, password });
+  },
+
   async openExternal(url: string): Promise<void> {
     let u: URL;
     try {

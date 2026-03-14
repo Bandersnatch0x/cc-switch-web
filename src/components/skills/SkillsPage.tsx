@@ -24,7 +24,7 @@ import { RepoManager } from "./RepoManager";
 import { skillsApi, type Skill, type SkillRepo } from "@/lib/api/skills";
 import { formatSkillError } from "@/lib/errors/skillErrorParser";
 import type { AppId } from "@/lib/api";
-import { SUPPORTED_APPS } from "@/config/apps";
+import { isSkillsApp, SKILLS_APPS } from "@/config/apps";
 
 interface SkillsPageProps {
   onClose?: () => void;
@@ -48,7 +48,9 @@ export function SkillsPage({ onClose: _onClose, appId }: SkillsPageProps = {}) {
 }
 
 function SkillsPageContent({ onClose: _onClose, appId }: SkillsPageProps = {}) {
-  const [selectedApp, setSelectedApp] = useState<AppId>(() => appId ?? "claude");
+  const [selectedApp, setSelectedApp] = useState<AppId>(() =>
+    appId && isSkillsApp(appId) ? appId : "claude",
+  );
   const currentApp: AppId = selectedApp;
   const { t } = useTranslation();
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -557,14 +559,14 @@ function SkillsPageContent({ onClose: _onClose, appId }: SkillsPageProps = {}) {
           <span className="text-sm text-muted-foreground">
             {t("skills.targetApp", { defaultValue: "安装目标客户端" })}
           </span>
-          {SUPPORTED_APPS.map((app) => (
+          {SKILLS_APPS.map((app) => (
             <Button
-              key={app.id}
-              variant={currentApp === app.id ? "default" : "mcp"}
+              key={app}
+              variant={currentApp === app ? "default" : "mcp"}
               size="sm"
-              onClick={() => setSelectedApp(app.id)}
+              onClick={() => setSelectedApp(app)}
             >
-              {t(app.labelKey, { defaultValue: app.id })}
+              {t(`apps.${app}`, { defaultValue: app })}
             </Button>
           ))}
         </div>

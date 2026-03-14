@@ -103,7 +103,7 @@ async fn skills_install_rejects_upcoming_app_payload() {
 
 #[tokio::test]
 #[serial]
-async fn config_get_dir_rejects_upcoming_app() {
+async fn config_get_dir_supports_opencode() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let _home = ensure_test_home();
@@ -117,12 +117,7 @@ async fn config_get_dir_rejects_upcoming_app() {
         .expect("build request");
 
     let res = dispatch(app, req).await;
-    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    let error = response_error_message(res).await;
-    assert!(
-        error.contains("暂未支持") || error.contains("not supported yet"),
-        "unexpected error message: {error}"
-    );
+    assert_eq!(res.status(), StatusCode::OK);
 }
 
 #[tokio::test]
@@ -151,7 +146,7 @@ async fn mcp_get_config_rejects_upcoming_app() {
 
 #[tokio::test]
 #[serial]
-async fn providers_list_rejects_upcoming_app() {
+async fn providers_list_supports_opencode() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
     let _home = ensure_test_home();
@@ -165,12 +160,7 @@ async fn providers_list_rejects_upcoming_app() {
         .expect("build request");
 
     let res = dispatch(app, req).await;
-    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    let error = response_error_message(res).await;
-    assert!(
-        error.contains("暂未支持") || error.contains("not supported yet"),
-        "unexpected error message: {error}"
-    );
+    assert_eq!(res.status(), StatusCode::OK);
 }
 
 #[tokio::test]

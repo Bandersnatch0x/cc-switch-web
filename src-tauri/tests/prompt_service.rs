@@ -89,9 +89,8 @@ fn expected_prompt_path(app: &AppType, home: &Path) -> PathBuf {
             .expect("codex auth parent")
             .join("AGENTS.md"),
         AppType::Gemini => home.join(".gemini").join("GEMINI.md"),
-        AppType::Opencode | AppType::Omo => {
-            panic!("upcoming app should not be used in prompt service tests")
-        }
+        AppType::Opencode => home.join(".config").join("opencode").join("AGENTS.md"),
+        AppType::Omo => panic!("omo should not be used in prompt service tests"),
     }
 }
 
@@ -113,7 +112,12 @@ fn get_prompts_empty_returns_empty_map() {
     let _home = setup_test_home("get-prompts-empty");
     let state = build_state();
 
-    for app in [AppType::Claude, AppType::Codex, AppType::Gemini] {
+    for app in [
+        AppType::Claude,
+        AppType::Codex,
+        AppType::Gemini,
+        AppType::Opencode,
+    ] {
         let prompts = PromptService::get_prompts(&state, app.clone()).expect("get prompts");
         assert!(prompts.is_empty(), "expected empty prompts for {app:?}");
     }
@@ -363,6 +367,7 @@ fn prompt_file_ops_write_and_permissions() {
         (AppType::Claude, "claude-content"),
         (AppType::Codex, "codex-content"),
         (AppType::Gemini, "gemini-content"),
+        (AppType::Opencode, "opencode-content"),
     ];
 
     for (app, content) in cases {

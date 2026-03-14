@@ -304,6 +304,12 @@ export function getRelayPulseProviderFromProvider(
     if (byUrl) return byUrl;
   }
 
+  // OpenCode 配置：options.baseURL
+  if (typeof config?.options?.baseURL === "string") {
+    const byUrl = getRelayPulseProviderFromUrl(config.options.baseURL);
+    if (byUrl) return byUrl;
+  }
+
   // 3. 尝试从 websiteUrl 匹配
   if (provider.websiteUrl) {
     const byWebsite = getRelayPulseProviderFromUrl(provider.websiteUrl);

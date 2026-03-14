@@ -18,6 +18,15 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: tMock }),
 }));
 
+const adapterMocks = vi.hoisted(() => ({
+  isWeb: vi.fn(() => true),
+  getStoredWebUsername: vi.fn(() => "admin"),
+  getWebApiBase: vi.fn(() => "/api"),
+  setWebCredentials: vi.fn(),
+}));
+
+vi.mock("@/lib/api/adapter", () => adapterMocks);
+
 interface SettingsMock {
   settings: any;
   isLoading: boolean;
@@ -122,20 +131,43 @@ vi.mock("@/hooks/useImportExport", () => ({
 vi.mock("@/lib/api", () => ({
   settingsApi: {
     restart: vi.fn().mockResolvedValue(true),
+    updateWebCredentials: vi.fn().mockResolvedValue(true),
   },
 }));
 
-const TabsContext = createContext<{ value: string; onValueChange?: (value: string) => void }>({
+const TabsContext = createContext<{
+  value: string;
+  onValueChange?: (value: string) => void;
+}>({
   value: "general",
 });
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ open, children }: any) => (open ? <div data-testid="dialog-root">{children}</div> : null),
+  Dialog: ({ open, children }: any) =>
+    open ? <div data-testid="dialog-root">{children}</div> : null,
   DialogContent: ({ children }: any) => <div>{children}</div>,
   DialogHeader: ({ children }: any) => <div>{children}</div>,
   DialogFooter: ({ children }: any) => <div>{children}</div>,
   DialogTitle: ({ children }: any) => <h2>{children}</h2>,
   DialogDescription: ({ children }: any) => <p>{children}</p>,
+}));
+
+vi.mock("@/components/ui/input", () => ({
+  Input: ({ value, onChange, ...rest }: any) => (
+    <input
+      value={value}
+      onChange={(event) =>
+        onChange?.({ target: { value: event.target.value } })
+      }
+      {...rest}
+    />
+  ),
+}));
+
+vi.mock("@/components/ui/label", () => ({
+  Label: ({ children, htmlFor }: any) => (
+    <label htmlFor={htmlFor}>{children}</label>
+  ),
 }));
 
 vi.mock("@/components/ui/tabs", () => {
@@ -193,12 +225,20 @@ vi.mock("@/components/settings/DirectorySettings", () => ({
     onAppConfigChange,
   }: any) => (
     <div>
-      <button onClick={() => onBrowseDirectory("claude")}>browse-directory</button>
-      <button onClick={() => onResetDirectory("claude")}>reset-directory</button>
-      <button onClick={() => onDirectoryChange("codex", "/new/path")}>change-directory</button>
+      <button onClick={() => onBrowseDirectory("claude")}>
+        browse-directory
+      </button>
+      <button onClick={() => onResetDirectory("claude")}>
+        reset-directory
+      </button>
+      <button onClick={() => onDirectoryChange("codex", "/new/path")}>
+        change-directory
+      </button>
       <button onClick={() => onBrowseAppConfig()}>browse-app-config</button>
       <button onClick={() => onResetAppConfig()}>reset-app-config</button>
-      <button onClick={() => onAppConfigChange("/app/new")}>change-app-config</button>
+      <button onClick={() => onAppConfigChange("/app/new")}>
+        change-app-config
+      </button>
     </div>
   ),
 }));
@@ -215,15 +255,22 @@ describe("SettingsDialog Component", () => {
     settingsMock = createSettingsMock();
     importExportMock = createImportExportMock();
     useImportExportSpy.mockReset();
-    useImportExportSpy.mockImplementation((options?: Record<string, unknown>) => {
-      lastUseImportExportOptions = options;
-      return importExportMock;
-    });
+    useImportExportSpy.mockImplementation(
+      (options?: Record<string, unknown>) => {
+        lastUseImportExportOptions = options;
+        return importExportMock;
+      },
+    );
     lastUseImportExportOptions = undefined;
     toastSuccessMock.mockReset();
     toastErrorMock.mockReset();
     settingsApi = (await import("@/lib/api")).settingsApi;
     settingsApi.restart.mockClear();
+    settingsApi.updateWebCredentials.mockClear();
+    settingsApi.updateWebCredentials.mockResolvedValue(true);
+    adapterMocks.setWebCredentials.mockClear();
+    adapterMocks.getWebApiBase.mockClear();
+    adapterMocks.getWebApiBase.mockReturnValue("/api");
   });
 
   afterEach(() => {
@@ -253,7 +300,9 @@ describe("SettingsDialog Component", () => {
 
   it("should render general and advanced tabs and trigger child callbacks", () => {
     const onOpenChange = vi.fn();
-    importExportMock = createImportExportMock({ selectedFile: "/tmp/config.json" });
+    importExportMock = createImportExportMock({
+      selectedFile: "/tmp/config.json",
+    });
 
     render(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
 
@@ -261,17 +310,25 @@ describe("SettingsDialog Component", () => {
     expect(screen.getByText("theme-settings")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("change-language"));
-    expect(settingsMock.updateSettings).toHaveBeenCalledWith({ language: "en" });
+    expect(settingsMock.updateSettings).toHaveBeenCalledWith({
+      language: "en",
+    });
 
     fireEvent.click(screen.getByText("window-settings"));
-    expect(settingsMock.updateSettings).toHaveBeenCalledWith({ minimizeToTrayOnClose: false });
+    expect(settingsMock.updateSettings).toHaveBeenCalledWith({
+      minimizeToTrayOnClose: false,
+    });
 
     fireEvent.click(screen.getByText("settings.tabAdvanced"));
-    fireEvent.click(screen.getByRole("button", { name: "settings.selectConfigFile" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.selectConfigFile" }),
+    );
 
     expect(importExportMock.selectImportFile).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "settings.exportConfig" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.exportConfig" }),
+    );
     expect(importExportMock.exportConfig).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "settings.import" }));
@@ -342,12 +399,16 @@ describe("SettingsDialog Component", () => {
 
     render(<SettingsDialog open={true} onOpenChange={vi.fn()} />);
 
-    expect(await screen.findByText("settings.restartRequired")).toBeInTheDocument();
+    expect(
+      await screen.findByText("settings.restartRequired"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("settings.restartNow"));
 
     await waitFor(() => {
-      expect(toastSuccessMock).toHaveBeenCalledWith("settings.devModeRestartHint");
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "settings.devModeRestartHint",
+      );
     });
   });
 
@@ -357,7 +418,9 @@ describe("SettingsDialog Component", () => {
 
     render(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
 
-    expect(await screen.findByText("settings.restartRequired")).toBeInTheDocument();
+    expect(
+      await screen.findByText("settings.restartRequired"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("settings.restartLater"));
 
@@ -383,7 +446,10 @@ describe("SettingsDialog Component", () => {
     expect(settingsMock.resetDirectory).toHaveBeenCalledWith("claude");
 
     fireEvent.click(screen.getByText("change-directory"));
-    expect(settingsMock.updateDirectory).toHaveBeenCalledWith("codex", "/new/path");
+    expect(settingsMock.updateDirectory).toHaveBeenCalledWith(
+      "codex",
+      "/new/path",
+    );
 
     fireEvent.click(screen.getByText("browse-app-config"));
     expect(settingsMock.browseAppConfigDir).toHaveBeenCalledTimes(1);
@@ -393,5 +459,82 @@ describe("SettingsDialog Component", () => {
 
     fireEvent.click(screen.getByText("change-app-config"));
     expect(settingsMock.updateAppConfigDir).toHaveBeenCalledWith("/app/new");
+  });
+
+  it("should submit web credentials in advanced tab", async () => {
+    render(<SettingsDialog open={true} onOpenChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByText("settings.tabAdvanced"));
+
+    fireEvent.change(
+      screen.getByLabelText("settings.webCredentials.username"),
+      {
+        target: { value: "alice" },
+      },
+    );
+    fireEvent.change(
+      screen.getByLabelText("settings.webCredentials.password"),
+      {
+        target: { value: "secret123" },
+      },
+    );
+    fireEvent.change(
+      screen.getByLabelText("settings.webCredentials.confirmPassword"),
+      {
+        target: { value: "secret123" },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.webCredentials.submit" }),
+    );
+
+    await waitFor(() => {
+      expect(settingsApi.updateWebCredentials).toHaveBeenCalledWith(
+        "alice",
+        "secret123",
+      );
+      expect(adapterMocks.setWebCredentials).toHaveBeenCalledWith(
+        "alice",
+        "secret123",
+        "/api",
+      );
+    });
+  });
+
+  it("should reject too short web credentials password before submit", async () => {
+    render(<SettingsDialog open={true} onOpenChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByText("settings.tabAdvanced"));
+
+    fireEvent.change(
+      screen.getByLabelText("settings.webCredentials.username"),
+      {
+        target: { value: "alice" },
+      },
+    );
+    fireEvent.change(
+      screen.getByLabelText("settings.webCredentials.password"),
+      {
+        target: { value: "short" },
+      },
+    );
+    fireEvent.change(
+      screen.getByLabelText("settings.webCredentials.confirmPassword"),
+      {
+        target: { value: "short" },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.webCredentials.submit" }),
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "settings.webCredentials.validation.passwordTooShort",
+      );
+    });
+    expect(settingsApi.updateWebCredentials).not.toHaveBeenCalled();
   });
 });

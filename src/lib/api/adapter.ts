@@ -21,9 +21,9 @@ const WEB_UNSUPPORTED_COMMANDS: Record<string, string> = {
   test_api_endpoints: "Web 端暂不支持端点测速，请使用桌面版。",
   get_custom_endpoints: "Web 端暂不支持获取 VSCode 自定义端点，请使用桌面版。",
   add_custom_endpoint: "Web 端暂不支持添加 VSCode 自定义端点，请使用桌面版。",
-  remove_custom_endpoint: "Web 端暂不支持删除 VSCode 自定义端点，请使用桌面版。",
-  update_endpoint_last_used:
-    "Web 端暂不支持记录端点使用情况，请使用桌面版。",
+  remove_custom_endpoint:
+    "Web 端暂不支持删除 VSCode 自定义端点，请使用桌面版。",
+  update_endpoint_last_used: "Web 端暂不支持记录端点使用情况，请使用桌面版。",
   parse_deeplink: "Web 端暂不支持 Deeplink 解析，请使用桌面版。",
   import_from_deeplink: "Web 端暂不支持 Deeplink 导入，请使用桌面版。",
 };
@@ -276,7 +276,11 @@ const isAllowedExternalUrl = (value: string): boolean => {
   }
 };
 
-const requireArg = <T = unknown>(args: unknown, key: string, cmd: string): T => {
+const requireArg = <T = unknown>(
+  args: unknown,
+  key: string,
+  cmd: string,
+): T => {
   if (!isRecord(args)) {
     throw new Error(
       `Missing argument "${key}" for command "${cmd}" in web mode`,
@@ -399,6 +403,7 @@ export function base64EncodeUtf8(value: string): string {
 interface StoredWebCredentialsPayload {
   token: string;
   apiBase: string | null;
+  username: string | null;
   legacy: boolean;
 }
 
@@ -415,20 +420,29 @@ const parseStoredWebCredentialsValue = (
         if (!token) return null;
         const apiBase =
           typeof parsed.apiBase === "string" ? parsed.apiBase : null;
-        return { token, apiBase, legacy: false };
+        const username =
+          typeof parsed.username === "string" ? parsed.username.trim() : "";
+        return {
+          token,
+          apiBase,
+          username: username ? username : null,
+          legacy: false,
+        };
       }
       return null;
     } catch {
       return null;
     }
   }
-  return { token: trimmed, apiBase: null, legacy: true };
+  return { token: trimmed, apiBase: null, username: null, legacy: true };
 };
 
 const isSameWebOrigin = (origin: string): boolean =>
   typeof window !== "undefined" && window.location?.origin === origin;
 
-function getStoredWebCredentials(targetUrl?: string): string | undefined {
+const resolveStoredWebCredentialsPayload = (
+  targetUrl?: string,
+): StoredWebCredentialsPayload | undefined => {
   if (typeof window === "undefined") return undefined;
   try {
     const value = window.sessionStorage?.getItem(WEB_AUTH_STORAGE_KEY);
@@ -443,21 +457,35 @@ function getStoredWebCredentials(targetUrl?: string): string | undefined {
     if (!isAllowedWebApiOrigin(targetOrigin)) return undefined;
     const sameOrigin = isSameWebOrigin(targetOrigin);
     if (parsed.legacy) {
-      return sameOrigin ? parsed.token : undefined;
+      return sameOrigin ? parsed : undefined;
     }
     const normalizedApiBase = normalizeWebApiBase(parsed.apiBase);
     if (normalizedApiBase && !isValidWebApiBase(normalizedApiBase)) {
       return undefined;
     }
     if (!normalizedApiBase || isRelativeWebApiBase(normalizedApiBase)) {
-      return sameOrigin ? parsed.token : undefined;
+      return sameOrigin ? parsed : undefined;
     }
     const storedOrigin = resolveWebOrigin(normalizedApiBase);
     if (!storedOrigin) return undefined;
-    return storedOrigin === targetOrigin ? parsed.token : undefined;
+    return storedOrigin === targetOrigin ? parsed : undefined;
   } catch {
     return undefined;
   }
+};
+
+function getStoredWebCredentials(targetUrl?: string): string | undefined {
+  const payload = resolveStoredWebCredentialsPayload(targetUrl);
+  return payload?.token;
+}
+
+export function getStoredWebUsername(targetUrl?: string): string {
+  const payload = resolveStoredWebCredentialsPayload(targetUrl);
+  if (!payload || payload.legacy) return "admin";
+  if (payload.username && payload.username.trim()) {
+    return payload.username;
+  }
+  return "admin";
 }
 
 export function getStoredWebApiBase(): string | undefined {
@@ -507,17 +535,25 @@ export function buildWebAuthHeadersForUrl(url: string): Record<string, string> {
   return headers;
 }
 
-export function setWebCredentials(password: string, apiBase?: string | null) {
+export function setWebCredentials(
+  username: string,
+  password: string,
+  apiBase?: string | null,
+) {
   if (typeof window === "undefined") return;
-  const encoded = base64EncodeUtf8(`admin:${password}`);
+  const trimmedUsername = username.trim();
+  const trimmedPassword = password.trim();
+  if (!trimmedUsername || !trimmedPassword) return;
+  const encoded = base64EncodeUtf8(`${trimmedUsername}:${trimmedPassword}`);
   const normalizedApiBase = normalizeWebApiBase(apiBase);
-  const storedApiBase =
+  const resolvedApiBase =
     normalizedApiBase && isValidWebApiBase(normalizedApiBase)
       ? normalizedApiBase
       : null;
   const payload = JSON.stringify({
     token: encoded,
-    apiBase: storedApiBase,
+    apiBase: resolvedApiBase,
+    username: trimmedUsername,
   });
   try {
     window.sessionStorage?.setItem(WEB_AUTH_STORAGE_KEY, payload);
@@ -609,12 +645,11 @@ export function commandToEndpoint(
         "provider",
         cmd,
       );
-      const providerId =
-        (provider.id ?? provider.providerId ?? args.id) as
-          | string
-          | number
-          | null
-          | undefined;
+      const providerId = (provider.id ?? provider.providerId ?? args.id) as
+        | string
+        | number
+        | null
+        | undefined;
       if (!providerId) {
         throw new Error(`Missing provider id for command "${cmd}" in web mode`);
       }
@@ -839,9 +874,7 @@ export function commandToEndpoint(
       const app = typeof args.app === "string" ? args.app : undefined;
       return {
         method: "GET",
-        url: app
-          ? `${apiBase}/skills?app=${encode(app)}`
-          : `${apiBase}/skills`,
+        url: app ? `${apiBase}/skills?app=${encode(app)}` : `${apiBase}/skills`,
       };
     }
     case "install_skill":
@@ -900,6 +933,15 @@ export function commandToEndpoint(
         method: "PUT",
         url: `${apiBase}/settings`,
         body: requireArg(args, "settings", cmd),
+      };
+    case "update_web_credentials":
+      return {
+        method: "PUT",
+        url: `${apiBase}/system/credentials`,
+        body: {
+          username: requireArg(args, "username", cmd),
+          password: requireArg(args, "password", cmd),
+        },
       };
     case "restart_app":
       return { method: "POST", url: `${apiBase}/system/restart` };
@@ -1033,10 +1075,7 @@ export async function invoke(
   cmd: "set_env_var",
   args?: CommandArgs,
 ): Promise<null>;
-export async function invoke<T>(
-  cmd: string,
-  args?: CommandArgs,
-): Promise<T>;
+export async function invoke<T>(cmd: string, args?: CommandArgs): Promise<T>;
 export async function invoke<T>(
   cmd: string,
   args: CommandArgs = {},

@@ -75,11 +75,25 @@ export function EditProviderDialog({
   }, [open, provider, appId]);
 
   const initialSettingsConfig = useMemo(() => {
+    if (appId === "opencode" && liveSettings && provider) {
+      const providerMap = liveSettings.provider;
+      if (providerMap && typeof providerMap === "object") {
+        const currentSettings = (providerMap as Record<string, unknown>)[
+          provider.id
+        ];
+        if (currentSettings && typeof currentSettings === "object") {
+          return currentSettings as Record<string, unknown>;
+        }
+      }
+
+      return (provider.settingsConfig ?? {}) as Record<string, unknown>;
+    }
+
     return (liveSettings ?? provider?.settingsConfig ?? {}) as Record<
       string,
       unknown
     >;
-  }, [liveSettings, provider]);
+  }, [appId, liveSettings, provider]);
 
   const handleSubmit = useCallback(
     async (values: ProviderFormValues) => {

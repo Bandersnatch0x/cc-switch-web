@@ -10,6 +10,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::{parse_app_type, parse_known_app_type, ApiError, ApiResult};
 use crate::{
     app_config::{AppType, MultiAppConfig},
     codex_config,
@@ -22,8 +23,6 @@ use crate::{
     services::ConfigService,
     store::AppState,
 };
-
-use super::{parse_app_type, ApiError, ApiResult};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -174,7 +173,7 @@ pub async fn export_config_snapshot(
 }
 
 pub async fn get_config_dir(Path(app): Path<String>) -> ApiResult<String> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_config_app_type(&app)?;
     let dir = get_supported_config_dir(app_type)?;
     Ok(Json(dir.to_string_lossy().to_string()))
 }
@@ -182,24 +181,22 @@ pub async fn get_config_dir(Path(app): Path<String>) -> ApiResult<String> {
 pub async fn get_config_dir_info(
     Path(app): Path<String>,
 ) -> ApiResult<crate::config::ConfigDirInfo> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_config_app_type(&app)?;
     let info = match app_type {
         AppType::Claude => crate::config::get_claude_config_dir_info().map_err(ApiError::from)?,
         AppType::Codex => codex_config::get_codex_config_dir_info().map_err(ApiError::from)?,
         AppType::Gemini => crate::gemini_config::get_gemini_dir_info().map_err(ApiError::from)?,
-        AppType::Opencode | AppType::Omo => {
-            return Err(ApiError::bad_request(format!(
-                "应用 '{}' 暂未支持，敬请期待。",
-                app_type.as_str()
-            )))
+        AppType::Opencode => {
+            crate::opencode_config::get_opencode_dir_info().map_err(ApiError::from)?
         }
+        AppType::Omo => crate::opencode_config::get_opencode_dir_info().map_err(ApiError::from)?,
     };
 
     Ok(Json(info))
 }
 
 pub async fn open_config_folder(Path(app): Path<String>) -> ApiResult<bool> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_config_app_type(&app)?;
     let dir = get_supported_config_dir(app_type)?;
 
     std::fs::create_dir_all(&dir).map_err(|e| ApiError::from(AppError::io(&dir, e)))?;
@@ -211,11 +208,13 @@ fn get_supported_config_dir(app_type: AppType) -> Result<std::path::PathBuf, Api
         AppType::Claude => crate::config::get_claude_config_dir().map_err(ApiError::from),
         AppType::Codex => codex_config::get_codex_config_dir().map_err(ApiError::from),
         AppType::Gemini => gemini_config::get_gemini_dir().map_err(ApiError::from),
-        AppType::Opencode | AppType::Omo => Err(ApiError::bad_request(format!(
-            "应用 '{}' 暂未支持，敬请期待。",
-            app_type.as_str()
-        ))),
+        AppType::Opencode => Ok(crate::opencode_config::get_opencode_dir()),
+        AppType::Omo => Ok(crate::omo_config::get_omo_dir()),
     }
+}
+
+fn parse_config_app_type(app: &str) -> Result<AppType, ApiError> {
+    parse_known_app_type(app)
 }
 
 pub async fn pick_directory() -> ApiResult<Option<String>> {

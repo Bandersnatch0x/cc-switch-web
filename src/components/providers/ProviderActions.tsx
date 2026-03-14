@@ -9,6 +9,7 @@ interface ProviderActionsProps {
   onEdit: () => void;
   onConfigureUsage: () => void;
   onDelete: () => void;
+  showUsageActions?: boolean;
 }
 
 export function ProviderActions({
@@ -17,6 +18,7 @@ export function ProviderActions({
   onEdit,
   onConfigureUsage,
   onDelete,
+  showUsageActions = true,
 }: ProviderActionsProps) {
   const { t } = useTranslation();
 
@@ -56,14 +58,16 @@ export function ProviderActions({
           <Edit className="h-4 w-4" />
         </Button>
 
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={onConfigureUsage}
-          title={t("provider.configureUsage")}
-        >
-          <BarChart3 className="h-4 w-4" />
-        </Button>
+        {showUsageActions ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onConfigureUsage}
+            title={t("provider.configureUsage")}
+          >
+            <BarChart3 className="h-4 w-4" />
+          </Button>
+        ) : null}
 
         <Button
           size="icon"

@@ -3,23 +3,24 @@ import { FolderSearch, Undo2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import type { AppId } from "@/lib/api";
+import type { DirectoryAppId } from "@/config/apps";
 import type { ResolvedDirectories } from "@/hooks/useSettings";
 import type { ConfigDirInfo } from "@/lib/api/settings";
 
 interface DirectorySettingsProps {
   appConfigDir?: string;
   resolvedDirs: ResolvedDirectories;
-  resolvedDirInfo: Partial<Record<AppId, ConfigDirInfo>>;
+  resolvedDirInfo: Partial<Record<DirectoryAppId, ConfigDirInfo>>;
   onAppConfigChange: (value?: string) => void;
   onBrowseAppConfig: () => Promise<void>;
   onResetAppConfig: () => Promise<void>;
   claudeDir?: string;
   codexDir?: string;
   geminiDir?: string;
-  onDirectoryChange: (app: AppId, value?: string) => void;
-  onBrowseDirectory: (app: AppId) => Promise<void>;
-  onResetDirectory: (app: AppId) => Promise<void>;
+  opencodeDir?: string;
+  onDirectoryChange: (app: DirectoryAppId, value?: string) => void;
+  onBrowseDirectory: (app: DirectoryAppId) => Promise<void>;
+  onResetDirectory: (app: DirectoryAppId) => Promise<void>;
   onApplyWslTemplate: (distro?: string) => void;
 }
 
@@ -33,6 +34,7 @@ export function DirectorySettings({
   claudeDir,
   codexDir,
   geminiDir,
+  opencodeDir,
   onDirectoryChange,
   onBrowseDirectory,
   onResetDirectory,
@@ -137,6 +139,25 @@ export function DirectorySettings({
           onChange={(val) => onDirectoryChange("gemini", val)}
           onBrowse={() => onBrowseDirectory("gemini")}
           onReset={() => onResetDirectory("gemini")}
+        />
+
+        <DirectoryInput
+          label={t("settings.opencodeConfigDir", {
+            defaultValue: "OpenCode / OMO 配置目录",
+          })}
+          description={t("settings.opencodeConfigDirDescription", {
+            defaultValue:
+              "OpenCode 与 oh-my-opencode 共用该目录，默认位于 ~/.config/opencode。",
+          })}
+          value={opencodeDir}
+          resolvedValue={resolvedDirs.opencode}
+          dirInfo={resolvedDirInfo.opencode}
+          placeholder={t("settings.browsePlaceholderOpencode", {
+            defaultValue: "/home/user/.config/opencode",
+          })}
+          onChange={(val) => onDirectoryChange("opencode", val)}
+          onBrowse={() => onBrowseDirectory("opencode")}
+          onReset={() => onResetDirectory("opencode")}
         />
 
         <p className="text-xs text-muted-foreground">

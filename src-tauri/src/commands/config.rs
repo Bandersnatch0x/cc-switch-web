@@ -7,6 +7,7 @@ use tauri_plugin_opener::OpenerExt;
 use crate::app_config::AppType;
 use crate::codex_config;
 use crate::config::{self, get_claude_settings_path, ConfigDirInfo, ConfigStatus};
+use std::str::FromStr;
 
 /// 获取 Claude Code 配置状态
 #[tauri::command]
@@ -16,7 +17,7 @@ pub async fn get_claude_config_status() -> Result<ConfigStatus, String> {
 
 #[tauri::command]
 pub async fn get_config_status(app: String) -> Result<ConfigStatus, String> {
-    match AppType::parse_supported(&app).map_err(|e| e.to_string())? {
+    match AppType::from_str(&app).map_err(|e| e.to_string())? {
         AppType::Claude => config::get_claude_config_status().map_err(|e| e.to_string()),
         AppType::Codex => {
             let auth_path = codex_config::get_codex_auth_path().map_err(|e| e.to_string())?;
@@ -39,7 +40,22 @@ pub async fn get_config_status(app: String) -> Result<ConfigStatus, String> {
 
             Ok(ConfigStatus { exists, path })
         }
-        AppType::Opencode | AppType::Omo => Err(format!("应用暂未支持: {app}")),
+        AppType::Opencode => {
+            let config_path = crate::opencode_config::get_opencode_config_path();
+            let exists = config_path.exists();
+            let path = crate::opencode_config::get_opencode_dir()
+                .to_string_lossy()
+                .to_string();
+
+            Ok(ConfigStatus { exists, path })
+        }
+        AppType::Omo => {
+            let config_path = crate::omo_config::resolve_omo_config_path();
+            let exists = config_path.exists();
+            let path = crate::omo_config::get_omo_dir().to_string_lossy().to_string();
+
+            Ok(ConfigStatus { exists, path })
+        }
     }
 }
 
@@ -53,11 +69,12 @@ pub async fn get_claude_code_config_path() -> Result<String, String> {
 /// 获取当前生效的配置目录
 #[tauri::command]
 pub async fn get_config_dir(app: String) -> Result<String, String> {
-    let dir = match AppType::parse_supported(&app).map_err(|e| e.to_string())? {
+    let dir = match AppType::from_str(&app).map_err(|e| e.to_string())? {
         AppType::Claude => config::get_claude_config_dir().map_err(|e| e.to_string())?,
         AppType::Codex => codex_config::get_codex_config_dir().map_err(|e| e.to_string())?,
         AppType::Gemini => crate::gemini_config::get_gemini_dir().map_err(|e| e.to_string())?,
-        AppType::Opencode | AppType::Omo => return Err(format!("应用暂未支持: {app}")),
+        AppType::Opencode => crate::opencode_config::get_opencode_dir(),
+        AppType::Omo => crate::omo_config::get_omo_dir(),
     };
 
     Ok(dir.to_string_lossy().to_string())
@@ -65,22 +82,24 @@ pub async fn get_config_dir(app: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn get_config_dir_info(app: String) -> Result<ConfigDirInfo, String> {
-    match AppType::parse_supported(&app).map_err(|e| e.to_string())? {
+    match AppType::from_str(&app).map_err(|e| e.to_string())? {
         AppType::Claude => config::get_claude_config_dir_info().map_err(|e| e.to_string()),
         AppType::Codex => codex_config::get_codex_config_dir_info().map_err(|e| e.to_string()),
         AppType::Gemini => crate::gemini_config::get_gemini_dir_info().map_err(|e| e.to_string()),
-        AppType::Opencode | AppType::Omo => Err(format!("应用暂未支持: {app}")),
+        AppType::Opencode => crate::opencode_config::get_opencode_dir_info().map_err(|e| e.to_string()),
+        AppType::Omo => crate::opencode_config::get_opencode_dir_info().map_err(|e| e.to_string()),
     }
 }
 
 /// 打开配置文件夹
 #[tauri::command]
 pub async fn open_config_folder(handle: AppHandle, app: String) -> Result<bool, String> {
-    let config_dir = match AppType::parse_supported(&app).map_err(|e| e.to_string())? {
+    let config_dir = match AppType::from_str(&app).map_err(|e| e.to_string())? {
         AppType::Claude => config::get_claude_config_dir().map_err(|e| e.to_string())?,
         AppType::Codex => codex_config::get_codex_config_dir().map_err(|e| e.to_string())?,
         AppType::Gemini => crate::gemini_config::get_gemini_dir().map_err(|e| e.to_string())?,
-        AppType::Opencode | AppType::Omo => return Err(format!("应用暂未支持: {app}")),
+        AppType::Opencode => crate::opencode_config::get_opencode_dir(),
+        AppType::Omo => crate::omo_config::get_omo_dir(),
     };
 
     if !config_dir.exists() {

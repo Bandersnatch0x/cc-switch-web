@@ -6,10 +6,22 @@ use axum::{extract::Extension, http::StatusCode, response::IntoResponse, Json};
 use serde::Deserialize;
 
 use super::{ApiError, ApiResult};
+use crate::{
+    error::AppError,
+    web_api::{persist_web_credentials, SharedWebAuth},
+};
+
+const MIN_WEB_PASSWORD_LEN: usize = 8;
 
 /// Stub handler for tray updates in web mode.
 pub async fn update_tray() -> ApiResult<bool> {
     Ok(Json(true))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateCredentialsPayload {
+    pub username: String,
+    pub password: String,
 }
 
 #[derive(Deserialize)]
@@ -29,6 +41,37 @@ pub async fn open_external(Json(payload): Json<OpenExternalPayload>) -> ApiResul
             "Unsupported URL scheme",
         ));
     }
+    Ok(Json(true))
+}
+
+/// Update web basic auth credentials (username + password).
+pub(crate) async fn update_credentials(
+    Extension(auth_state): Extension<SharedWebAuth>,
+    Json(payload): Json<UpdateCredentialsPayload>,
+) -> ApiResult<bool> {
+    let username = payload.username.trim();
+    if username.is_empty() {
+        return Err(ApiError::bad_request("Username is required"));
+    }
+    if username.contains(':') {
+        return Err(ApiError::bad_request("Username cannot contain ':'"));
+    }
+    let password = payload.password.trim();
+    if password.is_empty() {
+        return Err(ApiError::bad_request("Password is required"));
+    }
+    if password.chars().count() < MIN_WEB_PASSWORD_LEN {
+        return Err(ApiError::bad_request(format!(
+            "Password must be at least {MIN_WEB_PASSWORD_LEN} characters"
+        )));
+    }
+
+    persist_web_credentials(username, password)?;
+
+    let mut guard = auth_state.write().map_err(AppError::from)?;
+    guard.username = username.to_string();
+    guard.password = password.to_string();
+
     Ok(Json(true))
 }
 

@@ -22,7 +22,13 @@ import {
   isWeb,
 } from "@/lib/api/adapter";
 import { AppSwitcher } from "@/components/AppSwitcher";
-import { SUPPORTED_APPS } from "@/config/apps";
+import {
+  isMcpApp,
+  isPromptApp,
+  isProviderApp,
+  isSkillsApp,
+  isUsageApp,
+} from "@/config/apps";
 import { ProviderList } from "@/components/providers/ProviderList";
 import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
 import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
@@ -72,7 +78,7 @@ const ACTIVE_APP_STORAGE_KEY = "cc-switch:active-app";
 const CONFIG_DIR_WARNING_SHOWN_KEY = "cc-switch:config-dir-warning";
 
 function isSupportedAppId(value: unknown): value is AppId {
-  return SUPPORTED_APPS.some((app) => app.id === value);
+  return isProviderApp(value);
 }
 
 function readPersistedActiveApp(): AppId {
@@ -102,6 +108,10 @@ function AppContent() {
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [envConflicts, setEnvConflicts] = useState<EnvConflict[]>([]);
   const [showEnvBanner, setShowEnvBanner] = useState(false);
+  const promptSupported = isPromptApp(activeApp);
+  const mcpSupported = isMcpApp(activeApp);
+  const skillsSupported = isSkillsApp(activeApp);
+  const usageSupported = isUsageApp(activeApp);
 
   const { data, isLoading, refetch } = useProvidersQuery(activeApp);
   const providers = useMemo(() => data?.providers ?? {}, [data]);
@@ -116,6 +126,7 @@ function AppContent() {
   const configDirWarningRef = useRef<Set<string>>(new Set());
 
   const handleSwitchApp = useCallback((app: AppId) => {
+    setUsageProvider(null);
     setActiveApp(app);
     if (typeof window === "undefined") return;
     try {
@@ -124,6 +135,30 @@ function AppContent() {
       console.warn("[App] Failed to persist active app", error);
     }
   }, []);
+
+  useEffect(() => {
+    if (!promptSupported && isPromptOpen) {
+      setIsPromptOpen(false);
+    }
+    if (!mcpSupported && isMcpOpen) {
+      setIsMcpOpen(false);
+    }
+    if (!skillsSupported && isSkillsOpen) {
+      setIsSkillsOpen(false);
+    }
+    if (!usageSupported && usageProvider) {
+      setUsageProvider(null);
+    }
+  }, [
+    isMcpOpen,
+    isPromptOpen,
+    isSkillsOpen,
+    mcpSupported,
+    promptSupported,
+    skillsSupported,
+    usageProvider,
+    usageSupported,
+  ]);
 
   // 🎯 使用 useProviderActions Hook 统一管理所有 Provider 操作
   const {
@@ -614,27 +649,33 @@ function AppContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              variant="mcp"
-              onClick={() => setIsPromptOpen(true)}
-              className="min-w-[80px]"
-            >
-              {t("prompts.manage")}
-            </Button>
-            <Button
-              variant="mcp"
-              onClick={() => setIsMcpOpen(true)}
-              className="min-w-[80px]"
-            >
-              MCP
-            </Button>
-            <Button
-              variant="mcp"
-              onClick={() => setIsSkillsOpen(true)}
-              className="min-w-[80px]"
-            >
-              {t("skills.manage")}
-            </Button>
+            {promptSupported ? (
+              <Button
+                variant="mcp"
+                onClick={() => setIsPromptOpen(true)}
+                className="min-w-[80px]"
+              >
+                {t("prompts.manage")}
+              </Button>
+            ) : null}
+            {mcpSupported ? (
+              <Button
+                variant="mcp"
+                onClick={() => setIsMcpOpen(true)}
+                className="min-w-[80px]"
+              >
+                MCP
+              </Button>
+            ) : null}
+            {skillsSupported ? (
+              <Button
+                variant="mcp"
+                onClick={() => setIsSkillsOpen(true)}
+                className="min-w-[80px]"
+              >
+                {t("skills.manage")}
+              </Button>
+            ) : null}
             <Button onClick={() => setIsAddOpen(true)}>
               <Plus className="h-4 w-4" />
               {t("header.addProvider")}
@@ -684,7 +725,7 @@ function AppContent() {
         appId={activeApp}
       />
 
-      {usageProvider && (
+      {usageProvider && usageSupported ? (
         <UsageScriptModal
           provider={usageProvider}
           appId={activeApp}
@@ -718,7 +759,7 @@ function AppContent() {
         />
       ) : null}
 
-      {isPromptOpen ? (
+      {isPromptOpen && promptSupported ? (
         <PromptPanel
           open={isPromptOpen}
           onOpenChange={setIsPromptOpen}
@@ -726,11 +767,11 @@ function AppContent() {
         />
       ) : null}
 
-      {isMcpOpen ? (
+      {isMcpOpen && mcpSupported ? (
         <UnifiedMcpPanel open={isMcpOpen} onOpenChange={setIsMcpOpen} />
       ) : null}
 
-      {isSkillsOpen ? (
+      {isSkillsOpen && skillsSupported ? (
         <Dialog open={isSkillsOpen} onOpenChange={setIsSkillsOpen}>
           <DialogContent className="max-w-4xl max-h-[85vh] min-h-[600px] flex flex-col p-0">
             <DialogHeader className="sr-only">

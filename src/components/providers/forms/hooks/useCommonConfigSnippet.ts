@@ -12,6 +12,7 @@ const DEFAULT_COMMON_CONFIG_SNIPPET = `{
 }`;
 
 interface UseCommonConfigSnippetProps {
+  enabled?: boolean;
   settingsConfig: string;
   onConfigChange: (config: string) => void;
   initialData?: {
@@ -24,6 +25,7 @@ interface UseCommonConfigSnippetProps {
  * 从 config.json 读取和保存，支持从 localStorage 平滑迁移
  */
 export function useCommonConfigSnippet({
+  enabled = true,
   settingsConfig,
   onConfigChange,
   initialData,
@@ -40,6 +42,13 @@ export function useCommonConfigSnippet({
 
   // 初始化：从 config.json 加载，支持从 localStorage 迁移
   useEffect(() => {
+    if (!enabled) {
+      setIsLoading(false);
+      setUseCommonConfig(false);
+      setCommonConfigError("");
+      return;
+    }
+
     let mounted = true;
 
     const loadSnippet = async () => {
@@ -88,7 +97,7 @@ export function useCommonConfigSnippet({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [enabled]);
 
   // 初始化时检查通用配置片段（编辑模式）
   useEffect(() => {
@@ -105,6 +114,11 @@ export function useCommonConfigSnippet({
   // 处理通用配置开关
   const handleCommonConfigToggle = useCallback(
     (checked: boolean) => {
+      if (!enabled) {
+        setUseCommonConfig(false);
+        return;
+      }
+
       const { updatedConfig, error: snippetError } = updateCommonConfigSnippet(
         settingsConfig,
         commonConfigSnippet,
@@ -127,12 +141,17 @@ export function useCommonConfigSnippet({
         isUpdatingFromCommonConfig.current = false;
       }, 0);
     },
-    [settingsConfig, commonConfigSnippet, onConfigChange],
+    [enabled, settingsConfig, commonConfigSnippet, onConfigChange],
   );
 
   // 处理通用配置片段变化
   const handleCommonConfigSnippetChange = useCallback(
     (value: string) => {
+      if (!enabled) {
+        setCommonConfigSnippetState(value);
+        return;
+      }
+
       const previousSnippet = commonConfigSnippet;
       setCommonConfigSnippetState(value);
 
@@ -200,12 +219,18 @@ export function useCommonConfigSnippet({
         }, 0);
       }
     },
-    [commonConfigSnippet, settingsConfig, useCommonConfig, onConfigChange],
+    [
+      enabled,
+      commonConfigSnippet,
+      settingsConfig,
+      useCommonConfig,
+      onConfigChange,
+    ],
   );
 
   // 当配置变化时检查是否包含通用配置（但避免在通过通用配置更新时检查）
   useEffect(() => {
-    if (isUpdatingFromCommonConfig.current || isLoading) {
+    if (!enabled || isUpdatingFromCommonConfig.current || isLoading) {
       return;
     }
     const hasCommon = hasCommonConfigSnippet(
@@ -213,7 +238,7 @@ export function useCommonConfigSnippet({
       commonConfigSnippet,
     );
     setUseCommonConfig(hasCommon);
-  }, [settingsConfig, commonConfigSnippet, isLoading]);
+  }, [enabled, settingsConfig, commonConfigSnippet, isLoading]);
 
   return {
     useCommonConfig,

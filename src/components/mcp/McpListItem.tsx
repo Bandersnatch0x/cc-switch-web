@@ -136,6 +136,23 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
               disabled={isBusy}
             />
           </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor={`${id}-opencode`}
+              className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              {t("mcp.unifiedPanel.apps.opencode")}
+            </label>
+            <Switch
+              id={`${id}-opencode`}
+              checked={server.apps?.opencode ?? false}
+              onCheckedChange={(checked: boolean) =>
+                !isBusy && onToggleApp(id, "opencode", checked)
+              }
+              disabled={isBusy}
+            />
+          </div>
         </div>
 
         {/* 右侧：操作按钮 */}

@@ -176,9 +176,7 @@ describe("adapter helpers", () => {
     });
 
     try {
-      expect(
-        getWebApiBaseValidationError("https://api.example.com"),
-      ).toBe(
+      expect(getWebApiBaseValidationError("https://api.example.com")).toBe(
         "API 地址不在允许列表，请设置 CORS_ALLOW_ORIGINS 或启用 ALLOW_LAN_CORS（局域网自动放行）",
       );
     } finally {
@@ -241,16 +239,18 @@ describe("adapter helpers", () => {
       WEB_CSRF_STORAGE_KEY,
     } = await importAdapter();
 
-    setWebCredentials("secret", "/api");
+    setWebCredentials("alice", "secret", "/api");
     const stored = window.sessionStorage.getItem(WEB_AUTH_STORAGE_KEY);
     expect(stored).not.toBeNull();
     const parsed = JSON.parse(stored as string) as {
       token: string;
       apiBase: string | null;
+      username: string;
     };
     expect(parsed).toEqual({
-      token: Buffer.from("admin:secret").toString("base64"),
+      token: Buffer.from("alice:secret").toString("base64"),
       apiBase: "/api",
+      username: "alice",
     });
 
     window.sessionStorage.setItem(WEB_CSRF_STORAGE_KEY, "csrf");
@@ -258,6 +258,41 @@ describe("adapter helpers", () => {
 
     expect(window.sessionStorage.getItem(WEB_AUTH_STORAGE_KEY)).toBeNull();
     expect(window.sessionStorage.getItem(WEB_CSRF_STORAGE_KEY)).toBeNull();
+  });
+
+  it("getStoredWebUsername returns stored username when available", async () => {
+    const { setWebCredentials, getStoredWebUsername } = await importAdapter();
+
+    setWebCredentials("alice", "secret", "/api");
+
+    expect(getStoredWebUsername()).toBe("alice");
+  });
+
+  it("getStoredWebUsername falls back to admin for legacy tokens", async () => {
+    const { WEB_AUTH_STORAGE_KEY, getStoredWebUsername } =
+      await importAdapter();
+
+    window.sessionStorage.setItem(
+      WEB_AUTH_STORAGE_KEY,
+      Buffer.from("admin:secret").toString("base64"),
+    );
+
+    expect(getStoredWebUsername()).toBe("admin");
+  });
+
+  it("getStoredWebUsername falls back to admin for legacy payloads", async () => {
+    const { WEB_AUTH_STORAGE_KEY, getStoredWebUsername } =
+      await importAdapter();
+
+    window.sessionStorage.setItem(
+      WEB_AUTH_STORAGE_KEY,
+      JSON.stringify({
+        token: Buffer.from("admin:secret").toString("base64"),
+        apiBase: "/api",
+      }),
+    );
+
+    expect(getStoredWebUsername()).toBe("admin");
   });
 });
 
@@ -793,12 +828,12 @@ describe("commandToEndpoint", () => {
     const args: Record<string, unknown> = {};
 
     expect(() => commandToEndpoint("get_providers", args)).toThrow(
-      "Missing argument \"app\"",
+      'Missing argument "app"',
     );
 
-    expect(() =>
-      commandToEndpoint("get_providers", undefined),
-    ).toThrow("Missing argument \"app\"");
+    expect(() => commandToEndpoint("get_providers", undefined)).toThrow(
+      'Missing argument "app"',
+    );
 
     expect(() =>
       commandToEndpoint("update_provider", {
@@ -850,14 +885,12 @@ describe("invoke (web mode)", () => {
 
   it("uses text payloads when json parsing fails", async () => {
     const { invoke } = await importAdapter();
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      {
-        ok: false,
-        status: 500,
-        headers: new Headers({ "content-type": "text/plain" }),
-        text: async () => "boom",
-      } as Response,
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      headers: new Headers({ "content-type": "text/plain" }),
+      text: async () => "boom",
+    } as Response);
 
     await expect(invoke("get_app_config_path")).rejects.toMatchObject({
       message: "boom",
@@ -867,14 +900,12 @@ describe("invoke (web mode)", () => {
 
   it("returns undefined for 204 responses", async () => {
     const { invoke } = await importAdapter();
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      {
-        ok: true,
-        status: 204,
-        headers: new Headers(),
-        text: async () => "",
-      } as Response,
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+      text: async () => "",
+    } as Response);
 
     await expect(invoke("get_app_config_path")).resolves.toBeUndefined();
   });

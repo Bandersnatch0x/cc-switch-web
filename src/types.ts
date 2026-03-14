@@ -99,6 +99,8 @@ export interface Settings {
   codexConfigDir?: string;
   // 覆盖 Gemini 配置目录（可选）
   geminiConfigDir?: string;
+  // 覆盖 OpenCode 配置目录（可选，oh-my-opencode 共用）
+  opencodeConfigDir?: string;
   // 首选语言（可选，默认中文）
   language?: "en" | "zh";
   // Claude 自定义端点列表
@@ -134,6 +136,7 @@ export interface McpApps {
   claude: boolean;
   codex: boolean;
   gemini: boolean;
+  opencode: boolean;
 }
 
 // MCP 服务器条目（v3.7.0 统一结构）

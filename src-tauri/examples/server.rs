@@ -2,98 +2,22 @@
 
 use std::{
     env,
-    fs::{self, OpenOptions},
-    io::{self, Write},
+    io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    path::{Path, PathBuf},
     sync::Arc,
 };
 
-#[cfg(unix)]
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-
 use axum::serve;
 use log::{error, info};
-use rand::{seq::SliceRandom, thread_rng};
 use tokio::{net::TcpListener, signal};
 
 use cc_switch_lib::{
-    get_home_dir,
     store::AppState,
-    web_api::{create_router, SharedState},
+    web_api::{create_router_with_auth_state, load_or_generate_web_credentials, SharedState},
 };
 
 fn init_logger() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-}
-
-fn password_file_path() -> io::Result<PathBuf> {
-    let home_dir = get_home_dir().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "Unable to locate home directory for web password",
-        )
-    })?;
-
-    Ok(home_dir.join(".cc-switch").join("web_password"))
-}
-
-fn generate_password(length: usize) -> String {
-    const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
-    const UPPER: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const DIGITS: &[u8] = b"0123456789";
-    const ALL: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-    let mut rng = thread_rng();
-    let mut chars = Vec::with_capacity(length);
-
-    let mut push_from = |pool: &[u8]| {
-        if let Some(ch) = pool.choose(&mut rng) {
-            chars.push(*ch as char);
-        }
-    };
-
-    push_from(LOWER);
-    push_from(UPPER);
-    push_from(DIGITS);
-
-    while chars.len() < length {
-        if let Some(ch) = ALL.choose(&mut rng) {
-            chars.push(*ch as char);
-        }
-    }
-
-    chars.shuffle(&mut rng);
-    chars.into_iter().collect()
-}
-
-#[cfg(unix)]
-fn enforce_permissions(path: &Path) -> io::Result<()> {
-    fs::set_permissions(path, PermissionsExt::from_mode(0o600))
-}
-
-#[cfg(windows)]
-fn enforce_permissions(path: &Path) -> io::Result<()> {
-    use std::process::Command;
-
-    let path_str = path.to_string_lossy();
-
-    // Use icacls to remove inheritance and grant only the current user full control.
-    let output = Command::new("icacls")
-        .args([&*path_str, "/inheritance:r", "/grant:r", "*S-1-3-4:F"])
-        .output()?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        log::warn!("Failed to set Windows file permissions: {}", stderr);
-    }
-
-    Ok(())
-}
-
-#[cfg(all(not(unix), not(windows)))]
-fn enforce_permissions(_path: &Path) -> io::Result<()> {
-    Ok(())
 }
 
 fn env_truthy(name: &str) -> bool {
@@ -157,42 +81,15 @@ fn is_lan_bind_ip(ip: IpAddr) -> bool {
     }
 }
 
-fn load_or_generate_password() -> Result<(String, PathBuf), Box<dyn std::error::Error>> {
-    let path = password_file_path()?;
-
-    if let Ok(existing) = fs::read_to_string(&path) {
-        let password = existing.trim().to_string();
-        if !password.is_empty() {
-            enforce_permissions(&path)?;
-            return Ok((password, path));
-        }
-    }
-
-    let password = generate_password(24);
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let mut options = OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        options.mode(0o600);
-    }
-
-    let mut file = options.open(&path)?;
-    file.write_all(password.as_bytes())?;
-    enforce_permissions(&path)?;
-
-    Ok((password, path))
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logger();
 
-    let (password, password_path) = load_or_generate_password()?;
+    let (auth_state, password_path) = load_or_generate_web_credentials()?;
+    let username = auth_state
+        .read()
+        .map(|guard| guard.username.clone())
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
 
     let state: SharedState = Arc::new(AppState::try_new()?);
 
@@ -246,7 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let app = create_router(state, password.clone());
+    let app = create_router_with_auth_state(state, auth_state);
 
     if is_public_bind && !allow_insecure {
         if ip_is_unspecified(bind_ip) {
@@ -267,12 +164,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!(
-        "Starting web server on http://{} with file-based credentials at {} (username: admin, token stored only on disk)",
+        "Starting web server on http://{} with file-based credentials at {} (username: {}, token stored only on disk)",
         addr,
-        password_path.display()
+        password_path.display(),
+        username
     );
     println!(
-        "Web console login -> user: admin, token path: {} (content not printed for safety)",
+        "Web console login -> user: {}, token path: {} (content not printed for safety)",
+        username,
         password_path.display()
     );
 

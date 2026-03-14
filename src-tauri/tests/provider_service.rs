@@ -547,6 +547,181 @@ fn sync_default_provider_from_live_creates_default_when_missing() {
 }
 
 #[test]
+fn sync_default_provider_from_live_updates_current_opencode_provider_without_default() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let _home = ensure_test_home();
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config
+            .get_manager_mut(&AppType::Opencode)
+            .expect("opencode manager");
+        manager.current = "open-current".to_string();
+        manager.providers.insert(
+            "open-current".to_string(),
+            Provider::with_id(
+                "open-current".to_string(),
+                "Open Current".to_string(),
+                json!({
+                    "options": {
+                        "baseURL": "https://old.example.com/v1",
+                        "apiKey": "old-key"
+                    }
+                }),
+                None,
+            ),
+        );
+    }
+
+    let state = AppState {
+        config: RwLock::new(config),
+    };
+
+    ProviderService::sync_default_provider_from_live(
+        &state,
+        AppType::Opencode,
+        json!({
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+                "open-current": {
+                    "options": {
+                        "baseURL": "https://new.example.com/v1",
+                        "apiKey": "new-key"
+                    }
+                },
+                "extra": {
+                    "options": {
+                        "baseURL": "https://extra.example.com/v1",
+                        "apiKey": "extra-key"
+                    }
+                }
+            }
+        }),
+    )
+    .expect("sync current opencode provider from live should succeed");
+
+    let guard = state.config.read().expect("read config after sync");
+    let manager = guard
+        .get_manager(&AppType::Opencode)
+        .expect("opencode manager after sync");
+    assert_eq!(manager.current, "open-current");
+    assert!(
+        !manager.providers.contains_key("default"),
+        "opencode live sync should not create a default provider"
+    );
+    assert_eq!(
+        manager
+            .providers
+            .get("open-current")
+            .and_then(|provider| provider.settings_config.pointer("/options/baseURL"))
+            .and_then(|value| value.as_str()),
+        Some("https://new.example.com/v1"),
+        "current opencode provider should be updated from live fragment"
+    );
+}
+
+#[test]
+fn sync_default_provider_from_live_updates_current_omo_provider_without_default() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let _home = ensure_test_home();
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config.get_manager_mut(&AppType::Omo).expect("omo manager");
+        manager.current = "omo-current".to_string();
+        manager.providers.insert(
+            "omo-current".to_string(),
+            Provider::with_id(
+                "omo-current".to_string(),
+                "OMO Current".to_string(),
+                json!({ "agents": { "old": {} } }),
+                None,
+            ),
+        );
+    }
+
+    let state = AppState {
+        config: RwLock::new(config),
+    };
+
+    ProviderService::sync_default_provider_from_live(
+        &state,
+        AppType::Omo,
+        json!({ "agents": { "new-agent": {} }, "categories": {} }),
+    )
+    .expect("sync current omo provider from live should succeed");
+
+    let guard = state.config.read().expect("read config after sync");
+    let manager = guard
+        .get_manager(&AppType::Omo)
+        .expect("omo manager after sync");
+    assert_eq!(manager.current, "omo-current");
+    assert!(
+        !manager.providers.contains_key("default"),
+        "omo live sync should not create a default provider"
+    );
+    assert!(
+        manager
+            .providers
+            .get("omo-current")
+            .and_then(|provider| provider.settings_config.get("agents"))
+            .and_then(|value| value.get("new-agent"))
+            .is_some(),
+        "current omo provider should be updated from live config"
+    );
+}
+
+#[test]
+fn import_default_config_opencode_uses_deterministic_current_provider() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let opencode_dir = home.join(".config").join("opencode");
+    std::fs::create_dir_all(&opencode_dir).expect("create opencode dir");
+    std::fs::write(
+        opencode_dir.join("opencode.json"),
+        serde_json::to_string_pretty(&json!({
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+                "z-last": {
+                    "options": {
+                        "baseURL": "https://z.example.com/v1",
+                        "apiKey": "z-key"
+                    }
+                },
+                "a-first": {
+                    "options": {
+                        "baseURL": "https://a.example.com/v1",
+                        "apiKey": "a-key"
+                    }
+                }
+            }
+        }))
+        .expect("serialize opencode config"),
+    )
+    .expect("write opencode config");
+
+    let state = AppState {
+        config: RwLock::new(MultiAppConfig::default()),
+    };
+
+    ProviderService::import_default_config(&state, AppType::Opencode)
+        .expect("import default opencode config should succeed");
+
+    let guard = state.config.read().expect("read config after import");
+    let manager = guard
+        .get_manager(&AppType::Opencode)
+        .expect("opencode manager");
+    assert_eq!(
+        manager.current, "a-first",
+        "imported current provider should be chosen deterministically"
+    );
+}
+
+#[test]
 fn provider_service_switch_missing_provider_returns_error() {
     let state = AppState {
         config: RwLock::new(MultiAppConfig::default()),

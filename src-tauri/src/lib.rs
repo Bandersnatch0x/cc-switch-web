@@ -14,6 +14,7 @@ mod gemini_mcp;
 #[cfg(feature = "desktop")]
 mod init_status;
 mod mcp;
+mod omo_config;
 mod opencode_config;
 mod prompt;
 mod prompt_files;
@@ -593,6 +594,9 @@ pub fn run() {
             if let Ok(mut config_guard) = app_state.config.write() {
                 config_guard.ensure_app(&app_config::AppType::Claude);
                 config_guard.ensure_app(&app_config::AppType::Codex);
+                config_guard.ensure_app(&app_config::AppType::Gemini);
+                config_guard.ensure_app(&app_config::AppType::Opencode);
+                config_guard.ensure_app(&app_config::AppType::Omo);
             } else {
                 log::error!("初始化配置锁失败，跳过 ensure_app");
             }

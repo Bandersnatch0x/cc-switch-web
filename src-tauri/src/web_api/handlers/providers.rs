@@ -8,7 +8,9 @@ use axum::{
 };
 use serde::Deserialize;
 
+use super::{parse_known_app_type, ApiError, ApiResult};
 use crate::{
+    app_config::AppType,
     error::AppError,
     provider::{Provider, UsageResult},
     services::provider::ProviderSortUpdate,
@@ -16,8 +18,6 @@ use crate::{
     services::ProviderService,
     store::AppState,
 };
-
-use super::{parse_app_type, ApiError, ApiResult};
 
 #[derive(Debug, Deserialize)]
 pub struct ProviderPath {
@@ -36,7 +36,7 @@ pub async fn list_providers(
     State(state): State<Arc<AppState>>,
     Path(app): Path<String>,
 ) -> ApiResult<HashMap<String, Provider>> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let providers = ProviderService::list(&state, app_type).map_err(ApiError::from)?;
     Ok(Json(providers))
 }
@@ -45,7 +45,7 @@ pub async fn current_provider(
     State(state): State<Arc<AppState>>,
     Path(app): Path<String>,
 ) -> ApiResult<String> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let current = ProviderService::current(&state, app_type).map_err(ApiError::from)?;
     Ok(Json(current))
 }
@@ -54,7 +54,7 @@ pub async fn backup_provider(
     State(state): State<Arc<AppState>>,
     Path(app): Path<String>,
 ) -> ApiResult<Option<String>> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let backup = ProviderService::backup(&state, app_type).map_err(ApiError::from)?;
     Ok(Json(backup))
 }
@@ -69,7 +69,7 @@ pub async fn set_backup_provider(
     Path(app): Path<String>,
     Json(payload): Json<BackupPayload>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     ProviderService::set_backup(&state, app_type, payload.id).map_err(ApiError::from)?;
     Ok(Json(true))
 }
@@ -79,7 +79,7 @@ pub async fn add_provider(
     Path(app): Path<String>,
     Json(provider): Json<Provider>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let created = ProviderService::add(&state, app_type, provider).map_err(ApiError::from)?;
     Ok(Json(created))
 }
@@ -89,7 +89,7 @@ pub async fn update_provider(
     Path(path): Path<ProviderPath>,
     Json(mut provider): Json<Provider>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&path.app)?;
+    let app_type = parse_known_app_type(&path.app)?;
     if provider.id.is_empty() {
         provider.id = path.id.clone();
     } else if provider.id != path.id {
@@ -104,7 +104,7 @@ pub async fn delete_provider(
     State(state): State<Arc<AppState>>,
     Path(path): Path<ProviderPath>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&path.app)?;
+    let app_type = parse_known_app_type(&path.app)?;
     ProviderService::delete(&state, app_type, &path.id).map_err(ApiError::from)?;
     Ok(Json(true))
 }
@@ -113,7 +113,7 @@ pub async fn switch_provider(
     State(state): State<Arc<AppState>>,
     Path(path): Path<ProviderPath>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&path.app)?;
+    let app_type = parse_known_app_type(&path.app)?;
     ProviderService::switch(&state, app_type, &path.id).map_err(ApiError::from)?;
     Ok(Json(true))
 }
@@ -122,7 +122,7 @@ pub async fn import_default_config(
     State(state): State<Arc<AppState>>,
     Path(app): Path<String>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     match ProviderService::import_default_config(&state, app_type) {
         Ok(_) => Ok(Json(true)),
         Err(err) => {
@@ -137,7 +137,7 @@ pub async fn read_live_provider_settings(
     State(state): State<Arc<AppState>>,
     Path(app): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let live_settings =
         ProviderService::read_live_settings(app_type.clone()).map_err(ApiError::from)?;
     ProviderService::sync_default_provider_from_live(&state, app_type, live_settings.clone())
@@ -150,7 +150,7 @@ pub async fn update_sort_order(
     Path(app): Path<String>,
     Json(payload): Json<SortOrderPayload>,
 ) -> ApiResult<bool> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let updates = match payload {
         SortOrderPayload::Wrapped { updates } => updates,
         SortOrderPayload::Direct(updates) => updates,
@@ -164,7 +164,7 @@ pub async fn query_provider_usage(
     State(state): State<Arc<AppState>>,
     Path((app, id)): Path<(String, String)>,
 ) -> ApiResult<UsageResult> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let result = ProviderService::query_usage(&state, app_type, &id).await;
     match result {
         Ok(r) => Ok(Json(r)),
@@ -192,7 +192,7 @@ pub async fn test_usage_script(
     Path((app, id)): Path<(String, String)>,
     Json(req): Json<TestUsageScriptRequest>,
 ) -> ApiResult<UsageResult> {
-    let app_type = parse_app_type(&app)?;
+    let app_type = parse_known_app_type(&app)?;
     let result = ProviderService::test_usage_script(
         &state,
         app_type,

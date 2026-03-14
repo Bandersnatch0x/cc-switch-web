@@ -287,6 +287,8 @@ impl ConfigService {
         Self::sync_current_provider_for_app(config, &AppType::Claude)?;
         Self::sync_current_provider_for_app(config, &AppType::Codex)?;
         Self::sync_current_provider_for_app(config, &AppType::Gemini)?;
+        Self::sync_current_provider_for_app(config, &AppType::Opencode)?;
+        Self::sync_current_provider_for_app(config, &AppType::Omo)?;
         Ok(())
     }
 
@@ -321,13 +323,8 @@ impl ConfigService {
             AppType::Codex => Self::sync_codex_live(config, &current_id, &provider)?,
             AppType::Claude => Self::sync_claude_live(config, &current_id, &provider)?,
             AppType::Gemini => Self::sync_gemini_live(config, &current_id, &provider)?,
-            AppType::Opencode | AppType::Omo => {
-                return Err(AppError::localized(
-                    "app_not_supported_yet",
-                    format!("应用 '{}' 暂未支持，敬请期待。", app_type.as_str()),
-                    format!("App '{}' is not supported yet.", app_type.as_str()),
-                ));
-            }
+            AppType::Opencode => Self::sync_opencode_live(config)?,
+            AppType::Omo => Self::sync_omo_live(config, &current_id, &provider)?,
         }
 
         Ok(())
@@ -424,6 +421,55 @@ impl ConfigService {
         }
 
         if let Some(manager) = config.get_manager_mut(&AppType::Gemini) {
+            if let Some(target) = manager.providers.get_mut(provider_id) {
+                target.settings_config = live_after;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn sync_opencode_live(config: &mut MultiAppConfig) -> Result<(), AppError> {
+        let providers: Vec<(String, Provider)> = config
+            .get_manager(&AppType::Opencode)
+            .map(|manager| {
+                manager
+                    .providers
+                    .iter()
+                    .map(|(id, provider)| (id.clone(), provider.clone()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for (provider_id, provider) in providers {
+            ProviderService::write_opencode_live(&provider)?;
+
+            let live_after = crate::opencode_config::read_opencode_config()?;
+            let fragment = live_after
+                .get("provider")
+                .and_then(|value| value.get(&provider_id))
+                .cloned()
+                .unwrap_or_else(|| provider.settings_config.clone());
+
+            if let Some(manager) = config.get_manager_mut(&AppType::Opencode) {
+                if let Some(target) = manager.providers.get_mut(&provider_id) {
+                    target.settings_config = fragment;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn sync_omo_live(
+        config: &mut MultiAppConfig,
+        provider_id: &str,
+        provider: &Provider,
+    ) -> Result<(), AppError> {
+        ProviderService::write_omo_live(provider)?;
+
+        let live_after = crate::omo_config::read_omo_config()?;
+        if let Some(manager) = config.get_manager_mut(&AppType::Omo) {
             if let Some(target) = manager.providers.get_mut(provider_id) {
                 target.settings_config = live_after;
             }

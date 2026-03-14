@@ -48,6 +48,8 @@ const createSettings = (overrides: Partial<SettingsFormState> = {}): SettingsFor
   enableClaudePluginIntegration: false,
   claudeConfigDir: "/claude/custom",
   codexConfigDir: "/codex/custom",
+  geminiConfigDir: "/gemini/custom",
+  opencodeConfigDir: "/opencode/custom",
   language: "zh",
   ...overrides,
 });
@@ -70,7 +72,9 @@ describe("useDirectorySettings", () => {
           ? "/remote/claude"
           : app === "codex"
             ? "/remote/codex"
-            : "/remote/gemini",
+            : app === "gemini"
+              ? "/remote/gemini"
+              : "/remote/opencode",
       source: "service-home-default",
       homeMismatch: false,
     }));
@@ -79,7 +83,9 @@ describe("useDirectorySettings", () => {
         ? "/remote/claude"
         : app === "codex"
           ? "/remote/codex"
-          : "/remote/gemini",
+          : app === "gemini"
+            ? "/remote/gemini"
+            : "/remote/opencode",
     );
     selectConfigDirectoryMock.mockReset();
   });
@@ -99,6 +105,7 @@ describe("useDirectorySettings", () => {
       claude: "/remote/claude",
       codex: "/remote/codex",
       gemini: "/remote/gemini",
+      opencode: "/remote/opencode",
     });
   });
 
@@ -114,11 +121,13 @@ describe("useDirectorySettings", () => {
     expect(getConfigDirMock).toHaveBeenCalledWith("claude");
     expect(getConfigDirMock).toHaveBeenCalledWith("codex");
     expect(getConfigDirMock).toHaveBeenCalledWith("gemini");
+    expect(getConfigDirMock).toHaveBeenCalledWith("opencode");
     expect(result.current.resolvedDirs).toEqual({
       appConfig: "/home/mock/.cc-switch",
       claude: "/remote/claude",
       codex: "/remote/codex",
       gemini: "/remote/gemini",
+      opencode: "/remote/opencode",
     });
     expect(result.current.resolvedDirInfo.codex).toEqual({
       dir: "/remote/codex",
@@ -226,14 +235,21 @@ describe("useDirectorySettings", () => {
     await act(async () => {
       await result.current.resetDirectory("claude");
       await result.current.resetDirectory("codex");
+      await result.current.resetDirectory("opencode");
       await result.current.resetAppConfigDir();
     });
 
     expect(onUpdateSettings).toHaveBeenCalledWith({ claudeConfigDir: undefined });
     expect(onUpdateSettings).toHaveBeenCalledWith({ codexConfigDir: undefined });
+    expect(onUpdateSettings).toHaveBeenCalledWith({
+      opencodeConfigDir: undefined,
+    });
     expect(result.current.resolvedDirs.claude).toBe("/home/mock/.claude");
     expect(result.current.resolvedDirs.codex).toBe("/home/mock/.codex");
     expect(result.current.resolvedDirs.appConfig).toBe("/home/mock/.cc-switch");
+    expect(result.current.resolvedDirs.opencode).toBe(
+      "/home/mock/.config/opencode",
+    );
   });
 
   it("resetAllDirectories applies provided resolved values", async () => {
@@ -243,11 +259,17 @@ describe("useDirectorySettings", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() => {
-      result.current.resetAllDirectories("/server/claude", "/server/codex");
+      result.current.resetAllDirectories(
+        "/server/claude",
+        "/server/codex",
+        undefined,
+        "/server/opencode",
+      );
     });
 
     expect(result.current.resolvedDirs.claude).toBe("/server/claude");
     expect(result.current.resolvedDirs.codex).toBe("/server/codex");
+    expect(result.current.resolvedDirs.opencode).toBe("/server/opencode");
   });
 
   it("applies WSL template directories with custom distro", async () => {
@@ -274,6 +296,10 @@ describe("useDirectorySettings", () => {
     });
     expect(onUpdateSettings).toHaveBeenCalledWith({
       geminiConfigDir: "\\\\wsl$\\Debian\\home\\<your-username>\\.gemini",
+    });
+    expect(onUpdateSettings).toHaveBeenCalledWith({
+      opencodeConfigDir:
+        "\\\\wsl$\\Debian\\home\\<your-username>\\.config\\opencode",
     });
     expect(toastSuccessMock).toHaveBeenCalled();
   });

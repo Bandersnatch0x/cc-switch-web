@@ -1,17 +1,16 @@
-use crate::config::write_json_file;
+use crate::config::{get_client_config_dir_info, get_client_config_dir_path, write_json_file};
 use crate::error::AppError;
 use crate::settings::get_opencode_override_dir;
 use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 
 pub fn get_opencode_dir() -> PathBuf {
-    if let Some(override_dir) = get_opencode_override_dir() {
-        return override_dir;
-    }
+    get_client_config_dir_path(get_opencode_override_dir(), ".config/opencode")
+        .unwrap_or_else(|_| PathBuf::from(".config").join("opencode"))
+}
 
-    dirs::home_dir()
-        .map(|h| h.join(".config").join("opencode"))
-        .unwrap_or_else(|| PathBuf::from(".config").join("opencode"))
+pub fn get_opencode_dir_info() -> Result<crate::config::ConfigDirInfo, AppError> {
+    get_client_config_dir_info(get_opencode_override_dir(), ".config/opencode")
 }
 
 pub fn get_opencode_config_path() -> PathBuf {
@@ -74,6 +73,45 @@ pub fn remove_provider(id: &str) -> Result<(), AppError> {
         .and_then(|value| value.as_object_mut())
     {
         providers.remove(id);
+    }
+
+    write_opencode_config(&config)
+}
+
+pub fn add_plugin(plugin_name: &str) -> Result<(), AppError> {
+    let mut config = read_opencode_config()?;
+
+    let plugins = config.get_mut("plugin").and_then(|value| value.as_array_mut());
+
+    match plugins {
+        Some(arr) => {
+            let already_exists = arr.iter().any(|value| value.as_str() == Some(plugin_name));
+            if !already_exists {
+                arr.push(Value::String(plugin_name.to_string()));
+            }
+        }
+        None => {
+            config["plugin"] = json!([plugin_name]);
+        }
+    }
+
+    write_opencode_config(&config)
+}
+
+pub fn remove_plugin_by_prefix(prefix: &str) -> Result<(), AppError> {
+    let mut config = read_opencode_config()?;
+
+    if let Some(arr) = config.get_mut("plugin").and_then(|value| value.as_array_mut()) {
+        arr.retain(|value| {
+            value
+                .as_str()
+                .map(|plugin| !plugin.starts_with(prefix))
+                .unwrap_or(true)
+        });
+
+        if arr.is_empty() {
+            config.as_object_mut().map(|obj| obj.remove("plugin"));
+        }
     }
 
     write_opencode_config(&config)

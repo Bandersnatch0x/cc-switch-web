@@ -4,7 +4,7 @@ use std::{
     env, fs,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     path::{Path as StdPath, PathBuf},
-    sync::Arc,
+    sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -25,7 +25,6 @@ use axum::{
 use base64::Engine;
 use mime_guess::mime;
 use rust_embed::RustEmbed;
-use std::sync::Arc as StdArc;
 use tokio::sync::Mutex;
 use tower::limit::GlobalConcurrencyLimitLayer;
 use tower_http::{
@@ -39,6 +38,7 @@ use std::os::unix::fs::PermissionsExt;
 
 use crate::{
     config::{atomic_write, get_home_dir},
+    error::AppError,
     store::AppState,
 };
 
@@ -47,6 +47,23 @@ pub mod routes;
 
 /// Shared application state for the web server.
 pub type SharedState = Arc<AppState>;
+
+#[derive(Debug, Clone)]
+pub struct WebAuthCredentials {
+    pub username: String,
+    pub password: String,
+}
+
+impl Default for WebAuthCredentials {
+    fn default() -> Self {
+        Self {
+            username: DEFAULT_WEB_USERNAME.to_string(),
+            password: String::new(),
+        }
+    }
+}
+
+pub type SharedWebAuth = Arc<RwLock<WebAuthCredentials>>;
 
 #[derive(RustEmbed)]
 #[folder = "../dist-web"]
@@ -60,6 +77,8 @@ struct WebTokens {
 const DEFAULT_API_PREFIX: &str = "/api";
 const DEFAULT_WEB_BODY_LIMIT_BYTES: usize = 2_097_152;
 const DEFAULT_WEB_GLOBAL_CONCURRENCY: usize = 32;
+const DEFAULT_WEB_USERNAME: &str = "admin";
+const DEFAULT_WEB_PASSWORD_LEN: usize = 24;
 
 /// Serve embedded static assets with index.html fallback for SPA routes.
 async fn serve_static(
@@ -356,8 +375,142 @@ async fn rate_limit_middleware(
     next.run(req).await
 }
 
+pub fn web_password_path() -> Option<PathBuf> {
+    get_home_dir().map(|home| home.join(".cc-switch").join("web_password"))
+}
+
+pub fn web_username_path() -> Option<PathBuf> {
+    get_home_dir().map(|home| home.join(".cc-switch").join("web_username"))
+}
+
+pub fn load_or_generate_web_password() -> Result<(String, PathBuf), AppError> {
+    let path = web_password_path().ok_or_else(|| {
+        AppError::Config("Unable to locate home directory for web password".into())
+    })?;
+
+    if let Ok(content) = fs::read_to_string(&path) {
+        let trimmed = content.trim();
+        if !trimmed.is_empty() {
+            if let Err(err) = enforce_permissions(&path) {
+                log::warn!("Failed to enforce web password permissions: {}", err);
+            }
+            return Ok((trimmed.to_string(), path));
+        }
+    }
+
+    let password = generate_password(DEFAULT_WEB_PASSWORD_LEN);
+    let persisted = persist_web_password(&password)?;
+    Ok((password, persisted))
+}
+
+pub fn persist_web_password(password: &str) -> Result<PathBuf, AppError> {
+    let path = web_password_path().ok_or_else(|| {
+        AppError::Config("Unable to locate home directory for web password".into())
+    })?;
+    atomic_write(&path, password.as_bytes())?;
+    enforce_permissions(&path).map_err(|e| AppError::io(&path, e))?;
+    Ok(path)
+}
+
+pub fn persist_web_username(username: &str) -> Result<PathBuf, AppError> {
+    let path = web_username_path().ok_or_else(|| {
+        AppError::Config("Unable to locate home directory for web username".into())
+    })?;
+    atomic_write(&path, username.as_bytes())?;
+    enforce_permissions(&path).map_err(|e| AppError::io(&path, e))?;
+    Ok(path)
+}
+
+pub fn persist_web_credentials(username: &str, password: &str) -> Result<(), AppError> {
+    let username_path = web_username_path().ok_or_else(|| {
+        AppError::Config("Unable to locate home directory for web username".into())
+    })?;
+    let password_path = web_password_path().ok_or_else(|| {
+        AppError::Config("Unable to locate home directory for web password".into())
+    })?;
+
+    let previous_username = fs::read_to_string(&username_path)
+        .ok()
+        .map(|content| content.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let previous_password = fs::read_to_string(&password_path)
+        .ok()
+        .map(|content| content.trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    persist_web_username(username)?;
+
+    if let Err(err) = persist_web_password(password) {
+        match previous_username {
+            Some(ref original_username) => {
+                let _ = persist_web_username(original_username);
+            }
+            None if username_path.exists() => {
+                let _ = fs::remove_file(&username_path);
+            }
+            None => {}
+        }
+
+        match previous_password {
+            Some(ref original_password) => {
+                let _ = persist_web_password(original_password);
+            }
+            None if password_path.exists() => {
+                let _ = fs::remove_file(&password_path);
+            }
+            None => {}
+        }
+
+        return Err(err);
+    }
+
+    Ok(())
+}
+
+pub fn load_web_username() -> String {
+    if let Some(path) = web_username_path() {
+        if let Ok(content) = fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            if !trimmed.is_empty() {
+                if let Err(err) = enforce_permissions(&path) {
+                    log::warn!("Failed to enforce web username permissions: {}", err);
+                }
+                return trimmed.to_string();
+            }
+        }
+    }
+    DEFAULT_WEB_USERNAME.to_string()
+}
+
+pub fn load_or_generate_web_credentials() -> Result<(SharedWebAuth, PathBuf), AppError> {
+    let (password, password_path) = load_or_generate_web_password()?;
+    let username = load_web_username();
+    Ok((
+        build_shared_web_auth(username, password),
+        password_path,
+    ))
+}
+
+pub fn build_shared_web_auth(username: String, password: String) -> SharedWebAuth {
+    Arc::new(RwLock::new(WebAuthCredentials { username, password }))
+}
+
 /// Construct the axum router with all API routes and middleware.
 pub fn create_router(state: SharedState, password: String) -> Router {
+    create_router_with_credentials(state, load_web_username(), password)
+}
+
+/// Construct the axum router with all API routes and middleware.
+pub fn create_router_with_credentials(
+    state: SharedState,
+    username: String,
+    password: String,
+) -> Router {
+    let auth_state = build_shared_web_auth(username, password);
+    create_router_with_auth_state(state, auth_state)
+}
+
+pub fn create_router_with_auth_state(state: SharedState, auth_state: SharedWebAuth) -> Router {
     let tokens = Arc::new(load_or_generate_tokens());
     let csrf_token = Some(Arc::new(tokens.csrf_token.clone()));
     let api_prefix = web_api_prefix();
@@ -367,7 +520,8 @@ pub fn create_router(state: SharedState, password: String) -> Router {
         .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes" | "on"))
         .unwrap_or(true);
 
-    let auth_validator = AuthValidator::new(password, Some(tokens.csrf_token.clone()));
+    let auth_validator =
+        AuthValidator::new(auth_state.clone(), Some(tokens.csrf_token.clone()));
 
     let body_limit = parse_env_usize("WEB_MAX_BODY_BYTES").unwrap_or(DEFAULT_WEB_BODY_LIMIT_BYTES);
     let global_concurrency =
@@ -378,6 +532,7 @@ pub fn create_router(state: SharedState, password: String) -> Router {
     let mut router = routes::create_router(state)
         .fallback(api_not_found)
         .layer(Extension(csrf_token))
+        .layer(Extension(auth_state))
         .layer(ValidateRequestHeaderLayer::custom(auth_validator.clone()));
 
     if body_limit > 0 {
@@ -442,17 +597,15 @@ async fn api_not_found() -> StatusCode {
 
 #[derive(Clone)]
 struct AuthValidator {
-    basic_user: StdArc<String>,
-    basic_pass: StdArc<String>,
-    csrf_token: Option<StdArc<String>>,
+    credentials: SharedWebAuth,
+    csrf_token: Option<Arc<String>>,
 }
 
 impl AuthValidator {
-    fn new(password: String, csrf_token: Option<String>) -> Self {
+    fn new(credentials: SharedWebAuth, csrf_token: Option<String>) -> Self {
         Self {
-            basic_user: StdArc::new("admin".to_string()),
-            basic_pass: StdArc::new(password),
-            csrf_token: csrf_token.map(StdArc::new),
+            credentials,
+            csrf_token: csrf_token.map(Arc::new),
         }
     }
 
@@ -463,8 +616,10 @@ impl AuthValidator {
             {
                 if let Ok(s) = String::from_utf8(decoded) {
                     if let Some((user, pass)) = s.split_once(':') {
-                        return user == self.basic_user.as_str()
-                            && pass == self.basic_pass.as_str();
+                        if let Ok(guard) = self.credentials.read() {
+                            return user == guard.username.as_str()
+                                && pass == guard.password.as_str();
+                        }
                     }
                 }
             }
@@ -653,4 +808,35 @@ fn generate_token(len: usize) -> String {
         .take(len)
         .map(char::from)
         .collect()
+}
+
+fn generate_password(length: usize) -> String {
+    use rand::{seq::SliceRandom, thread_rng};
+
+    const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
+    const UPPER: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const DIGITS: &[u8] = b"0123456789";
+    const ALL: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    let mut rng = thread_rng();
+    let mut chars = Vec::with_capacity(length);
+
+    let mut push_from = |pool: &[u8]| {
+        if let Some(ch) = pool.choose(&mut rng) {
+            chars.push(*ch as char);
+        }
+    };
+
+    push_from(LOWER);
+    push_from(UPPER);
+    push_from(DIGITS);
+
+    while chars.len() < length {
+        if let Some(ch) = ALL.choose(&mut rng) {
+            chars.push(*ch as char);
+        }
+    }
+
+    chars.shuffle(&mut rng);
+    chars.into_iter().collect()
 }

@@ -41,6 +41,8 @@ const createSettings = (
   enableClaudePluginIntegration: false,
   claudeConfigDir: "/claude/custom",
   codexConfigDir: "/codex/custom",
+  geminiConfigDir: "/gemini/custom",
+  opencodeConfigDir: "/opencode/custom",
   language: "zh",
   ...overrides,
 });
@@ -56,7 +58,9 @@ describe("useDirectorySettings (web mode)", () => {
         ? "/remote/claude"
         : app === "codex"
           ? "/remote/codex"
-          : "/remote/gemini",
+          : app === "gemini"
+            ? "/remote/gemini"
+            : "/remote/opencode",
     );
   });
 

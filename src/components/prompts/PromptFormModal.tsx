@@ -35,6 +35,8 @@ const PromptFormModal: React.FC<PromptFormModalProps> = ({
     claude: "CLAUDE.md",
     codex: "AGENTS.md",
     gemini: "GEMINI.md",
+    opencode: "AGENTS.md",
+    omo: "AGENTS.md",
   };
   const filename = filenameMap[appId];
   const [name, setName] = useState("");

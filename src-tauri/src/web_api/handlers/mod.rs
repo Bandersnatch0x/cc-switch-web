@@ -6,6 +6,7 @@ use axum::{
     Json,
 };
 use serde::Serialize;
+use std::str::FromStr;
 
 use crate::{app_config::AppType, error::AppError};
 
@@ -70,9 +71,13 @@ pub fn parse_app_type(app: &str) -> Result<AppType, ApiError> {
     AppType::parse_supported(app).map_err(|e| ApiError::bad_request(e.to_string()))
 }
 
+pub fn parse_known_app_type(app: &str) -> Result<AppType, ApiError> {
+    AppType::from_str(app).map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::parse_app_type;
+    use super::{parse_app_type, parse_known_app_type};
     use crate::AppType;
     use axum::http::StatusCode;
 
@@ -91,5 +96,11 @@ mod tests {
             "unexpected error message: {}",
             err.message
         );
+    }
+
+    #[test]
+    fn parse_known_app_type_accepts_omo() {
+        let app = parse_known_app_type("omo").expect("omo should parse");
+        assert_eq!(app, AppType::Omo);
     }
 }

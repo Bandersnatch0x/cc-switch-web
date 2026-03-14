@@ -69,6 +69,7 @@
     "addClaudeProvider": "Add Claude Code Provider",
     "addCodexProvider": "Add Codex Provider",
     "addGeminiProvider": "Add Gemini Provider",
+    "addProviderForApp": "Add {{appName}} Provider",
     "addProviderHint": "Fill in the information to quickly switch providers in the list.",
     "editClaudeProvider": "Edit Claude Code Provider",
     "editCodexProvider": "Edit Codex Provider",
@@ -194,11 +195,14 @@
     "codexConfigDirDescription": "Override Codex configuration directory. On Windows + WSL use \\\\wsl$\\Distro\\home\\user\\.codex.",
     "geminiConfigDir": "Gemini Configuration Directory",
     "geminiConfigDirDescription": "Override Gemini configuration directory (.env). On Windows + WSL use \\\\wsl$\\Distro\\home\\user\\.gemini.",
+    "opencodeConfigDir": "OpenCode / OMO Configuration Directory",
+    "opencodeConfigDirDescription": "Override the shared OpenCode and oh-my-opencode configuration directory. On Windows + WSL use \\\\wsl$\\Distro\\home\\user\\.config\\opencode.",
     "currentWriteTarget": "Current live write target: {{path}}",
     "homeMismatchHint": "Web service HOME ({{serviceHome}}) differs from account HOME ({{accountHome}}). The app currently writes to {{path}}. Set an explicit override here if you want another target.",
     "browsePlaceholderClaude": "e.g., /home/<your-username>/.claude or \\\\wsl$\\Ubuntu\\home\\<your-username>\\.claude",
     "browsePlaceholderCodex": "e.g., /home/<your-username>/.codex or \\\\wsl$\\Ubuntu\\home\\<your-username>\\.codex",
     "browsePlaceholderGemini": "e.g., /home/<your-username>/.gemini or \\\\wsl$\\Ubuntu\\home\\<your-username>\\.gemini",
+    "browsePlaceholderOpencode": "e.g., /home/<your-username>/.config/opencode or \\\\wsl$\\Ubuntu\\home\\<your-username>\\.config\\opencode",
     "browseDirectory": "Browse Directory",
     "resetDefault": "Reset to default directory (takes effect after saving)",
     "fillWslTemplate": "Fill WSL Template Paths",
@@ -228,6 +232,23 @@
     "restartLater": "Restart Later",
     "restartFailed": "Application restart failed, please manually close and reopen.",
     "devModeRestartHint": "Dev Mode: Automatic restart not supported, please manually restart the application.",
+    "webCredentials": {
+      "title": "Web Login Credentials",
+      "description": "Update the username and password used for web mode login.",
+      "username": "Username",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "submit": "Update Credentials",
+      "updating": "Updating...",
+      "updateSuccess": "Web login credentials updated",
+      "updateFailed": "Update failed",
+      "validation": {
+        "required": "Please enter both username and password",
+        "invalidUsername": "Username cannot contain ':'",
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least {{min}} characters"
+      }
+    },
     "saving": "Saving..."
   },
   "apps": {
@@ -469,7 +490,8 @@
       "apps": {
         "claude": "Claude",
         "codex": "Codex",
-        "gemini": "Gemini"
+        "gemini": "Gemini",
+        "opencode": "OpenCode"
       }
     },
     "userLevelPath": "User-level MCP path",

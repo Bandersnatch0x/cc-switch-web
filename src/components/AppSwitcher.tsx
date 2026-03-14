@@ -1,6 +1,6 @@
 import type { AppId } from "@/lib/api";
 import { useTranslation } from "react-i18next";
-import { Clock3 } from "lucide-react";
+import { Blocks, Code2 } from "lucide-react";
 import { SWITCHER_APPS } from "@/config/apps";
 import { ClaudeIcon, CodexIcon, GeminiIcon } from "./BrandIcons";
 
@@ -45,45 +45,48 @@ export function AppSwitcher({ activeApp, onSwitch }: AppSwitcherProps) {
         />
       );
     }
-    return <Clock3 size={14} className="text-gray-400 dark:text-gray-500" />;
+    if (appId === "opencode") {
+      return (
+        <Code2
+          size={16}
+          className={
+            isActive
+              ? "text-[#0F766E] dark:text-[#14B8A6] transition-colors duration-200"
+              : "text-gray-500 dark:text-gray-400 group-hover:text-[#0F766E] dark:group-hover:text-[#14B8A6] transition-colors duration-200"
+          }
+        />
+      );
+    }
+    return (
+      <Blocks
+        size={16}
+        className={
+          isActive
+            ? "text-[#166534] dark:text-[#22C55E] transition-colors duration-200"
+            : "text-gray-500 dark:text-gray-400 group-hover:text-[#166534] dark:group-hover:text-[#22C55E] transition-colors duration-200"
+        }
+      />
+    );
   };
 
   return (
     <div className="inline-flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1 border border-transparent ">
       {SWITCHER_APPS.map((app) => {
-        const isSupported = app.kind === "supported";
-        const isActive = isSupported && activeApp === app.id;
+        const isActive = activeApp === app.id;
 
         return (
           <button
             key={app.id}
             type="button"
-            disabled={!isSupported}
-            onClick={() => {
-              if (isSupported) {
-                handleSwitch(app.id);
-              }
-            }}
+            onClick={() => handleSwitch(app.id)}
             className={`group inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-              isSupported
-                ? isActive
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none"
-                  : "text-gray-500 hover:text-gray-900 hover:bg-white/50 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800/60"
-                : "cursor-not-allowed text-gray-400 dark:text-gray-500 opacity-80"
+              isActive
+                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none"
+                : "text-gray-500 hover:text-gray-900 hover:bg-white/50 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800/60"
             }`}
-            title={
-              !isSupported
-                ? t("apps.comingSoon", { defaultValue: "Coming soon" })
-                : undefined
-            }
           >
-            {renderIcon(app.id, Boolean(isActive))}
+            {renderIcon(app.id, isActive)}
             <span>{t(app.labelKey)}</span>
-            {!isSupported && (
-              <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                {t("apps.comingSoon", { defaultValue: "Coming soon" })}
-              </span>
-            )}
           </button>
         );
       })}

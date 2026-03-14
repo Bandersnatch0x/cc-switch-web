@@ -7,6 +7,7 @@ import type {
 } from "@dnd-kit/core";
 import type { Provider } from "@/types";
 import type { AppId, ProviderHealth } from "@/lib/api";
+import { isUsageApp } from "@/config/apps";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProviderActions } from "@/components/providers/ProviderActions";
@@ -55,6 +56,11 @@ const extractApiUrl = (provider: Provider, fallbackText: string) => {
       (config as Record<string, any>)?.env?.GOOGLE_GEMINI_BASE_URL;
     if (typeof envBase === "string" && envBase.trim()) {
       return envBase;
+    }
+
+    const opencodeBase = (config as Record<string, any>)?.options?.baseURL;
+    if (typeof opencodeBase === "string" && opencodeBase.trim()) {
+      return opencodeBase;
     }
 
     const baseUrl = (config as Record<string, any>)?.config;
@@ -111,6 +117,7 @@ export function ProviderCard({
   }, [provider.notes, displayUrl, fallbackUrlText]);
 
   const usageEnabled = provider.meta?.usage_script?.enabled ?? false;
+  const usageSupported = isUsageApp(appId);
 
   const handleOpenWebsite = () => {
     if (!isClickableUrl) {
@@ -281,16 +288,18 @@ export function ProviderCard({
         </div>
 
         <div className="flex items-center gap-3">
-          <UsageFooter
-            provider={provider}
-            providerId={provider.id}
-            appId={appId}
-            usageEnabled={usageEnabled}
-            isCurrent={isCurrent}
-            backupProviderId={backupProviderId ?? null}
-            onAutoFailover={onAutoFailover}
-            inline={true}
-          />
+          {usageSupported ? (
+            <UsageFooter
+              provider={provider}
+              providerId={provider.id}
+              appId={appId}
+              usageEnabled={usageEnabled}
+              isCurrent={isCurrent}
+              backupProviderId={backupProviderId ?? null}
+              onAutoFailover={onAutoFailover}
+              inline={true}
+            />
+          ) : null}
 
           <ProviderActions
             isCurrent={isCurrent}
@@ -298,6 +307,7 @@ export function ProviderCard({
             onEdit={() => onEdit(provider)}
             onConfigureUsage={() => onConfigureUsage(provider)}
             onDelete={() => onDelete(provider)}
+            showUsageActions={usageSupported}
           />
         </div>
       </div>

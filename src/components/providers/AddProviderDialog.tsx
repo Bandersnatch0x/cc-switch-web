@@ -136,6 +136,11 @@ export function AddProviderDialog({
           if (env?.GOOGLE_GEMINI_BASE_URL) {
             addUrl(env.GOOGLE_GEMINI_BASE_URL);
           }
+        } else if (appId === "opencode") {
+          const options = parsedConfig.options as Record<string, any> | undefined;
+          if (options?.baseURL) {
+            addUrl(options.baseURL);
+          }
         }
 
         const urls = Array.from(urlSet);
@@ -168,7 +173,12 @@ export function AddProviderDialog({
       ? t("provider.addClaudeProvider")
       : appId === "codex"
         ? t("provider.addCodexProvider")
-        : t("provider.addGeminiProvider");
+        : appId === "gemini"
+          ? t("provider.addGeminiProvider")
+          : t("provider.addProviderForApp", {
+              defaultValue: "添加 {{appName}} 供应商",
+              appName: t(`apps.${appId}`, { defaultValue: appId }),
+            });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

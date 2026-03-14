@@ -70,11 +70,12 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
 
   // Count enabled servers per app
   const enabledCounts = useMemo(() => {
-    const counts = { claude: 0, codex: 0, gemini: 0 };
+    const counts = { claude: 0, codex: 0, gemini: 0, opencode: 0 };
     serverEntries.forEach(([_, server]) => {
       if (server.apps?.claude) counts.claude++;
       if (server.apps?.codex) counts.codex++;
       if (server.apps?.gemini) counts.gemini++;
+      if (server.apps?.opencode) counts.opencode++;
     });
     return counts;
   }, [serverEntries]);
@@ -190,7 +191,8 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
               {t("mcp.serverCount", { count: serverEntries.length })} ·{" "}
               {t("mcp.unifiedPanel.apps.claude")}: {enabledCounts.claude} ·{" "}
               {t("mcp.unifiedPanel.apps.codex")}: {enabledCounts.codex} ·{" "}
-              {t("mcp.unifiedPanel.apps.gemini")}: {enabledCounts.gemini}
+              {t("mcp.unifiedPanel.apps.gemini")}: {enabledCounts.gemini} ·{" "}
+              {t("mcp.unifiedPanel.apps.opencode")}: {enabledCounts.opencode}
             </div>
           </div>
 

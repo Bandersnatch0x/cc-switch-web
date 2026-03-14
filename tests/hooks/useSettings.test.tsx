@@ -64,6 +64,8 @@ const createSettingsFormMock = (overrides: Record<string, unknown> = {}) => ({
     enableClaudePluginIntegration: false,
     claudeConfigDir: "/claude",
     codexConfigDir: "/codex",
+    geminiConfigDir: "/gemini",
+    opencodeConfigDir: "/opencode",
     language: "zh",
   },
   isLoading: false,
@@ -81,6 +83,7 @@ const createDirectorySettingsMock = (overrides: Record<string, unknown> = {}) =>
     claude: "/default/claude",
     codex: "/default/codex",
     gemini: "/default/gemini",
+    opencode: "/default/opencode",
   },
   isLoading: false,
   initialAppConfigDir: undefined,
@@ -123,6 +126,8 @@ describe("useSettings hook", () => {
       enableClaudePluginIntegration: false,
       claudeConfigDir: "/server/claude",
       codexConfigDir: "/server/codex",
+      geminiConfigDir: "/server/gemini",
+      opencodeConfigDir: "/server/opencode",
       language: "zh",
     };
 
@@ -151,6 +156,8 @@ describe("useSettings hook", () => {
       enableClaudePluginIntegration: true,
       claudeConfigDir: "/server/claude",
       codexConfigDir: undefined,
+      geminiConfigDir: "/server/gemini",
+      opencodeConfigDir: "/server/opencode",
       language: "en",
     };
     useSettingsQueryMock.mockReturnValue({
@@ -287,7 +294,8 @@ describe("useSettings hook", () => {
     expect(directorySettingsMock.resetAllDirectories).toHaveBeenCalledWith(
       "/server/claude",
       undefined,
-      undefined,
+      "/server/gemini",
+      "/server/opencode",
     );
     expect(metadataMock.setRequiresRestart).toHaveBeenCalledWith(false);
   });

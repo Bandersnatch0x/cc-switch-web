@@ -25,8 +25,13 @@ vi.mock("@/components/UsageFooter", () => ({
   default: () => <div data-testid="usage-footer" />,
 }));
 
+const providerActionsSpy = vi.fn();
+
 vi.mock("@/components/providers/ProviderActions", () => ({
-  ProviderActions: () => <div data-testid="provider-actions" />,
+  ProviderActions: (props: any) => {
+    providerActionsSpy(props);
+    return <div data-testid="provider-actions" />;
+  },
 }));
 
 const createProvider = (overrides: Partial<Provider> = {}): Provider => ({
@@ -72,6 +77,7 @@ const renderProviderCard = (
     isEditMode?: boolean;
     dragHandleProps?: DragHandleProps;
     healthStatus?: ProviderHealth;
+    appId?: "claude" | "codex" | "gemini" | "opencode" | "omo";
   } = {},
 ) => {
   const provider = createProvider(providerOverrides);
@@ -86,7 +92,7 @@ const renderProviderCard = (
     <ProviderCard
       provider={provider}
       isCurrent={options.isCurrent ?? false}
-      appId="claude"
+      appId={options.appId ?? "claude"}
       isEditMode={options.isEditMode ?? false}
       onSwitch={onSwitch}
       onEdit={onEdit}
@@ -113,6 +119,7 @@ const renderProviderCard = (
 
 beforeEach(() => {
   tMock.mockClear();
+  providerActionsSpy.mockClear();
 });
 
 describe("ProviderCard", () => {
@@ -199,6 +206,15 @@ describe("ProviderCard", () => {
     await user.click(urlButton);
 
     expect(onOpenWebsite).not.toHaveBeenCalled();
+  });
+
+  it("hides usage UI for omo providers", () => {
+    renderProviderCard({}, { appId: "omo" });
+
+    expect(screen.queryByTestId("usage-footer")).not.toBeInTheDocument();
+    expect(providerActionsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ showUsageActions: false }),
+    );
   });
 
   it("renders health indicator tooltip and availability", () => {

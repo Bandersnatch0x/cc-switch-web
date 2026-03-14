@@ -18,6 +18,7 @@ import {
   getWebApiBase,
   getWebApiBaseValidationError,
   getStoredWebApiBase,
+  getStoredWebUsername,
   normalizeWebApiBase,
   setWebApiBaseOverride,
   setWebCredentials,
@@ -32,6 +33,7 @@ export interface WebLoginDialogProps {
 export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
   const [apiBase, setApiBase] = useState("");
   const [apiBaseError, setApiBaseError] = useState<string | null>(null);
+  const [username, setUsername] = useState(() => getStoredWebUsername());
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,6 +44,7 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
     if (!open) return;
     setApiBase(getStoredWebApiBase() ?? "");
     setApiBaseError(null);
+    setUsername(getStoredWebUsername());
     setPassword("");
     setError(null);
     setIsSubmitting(false);
@@ -56,8 +59,13 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
   const handleLogin = useCallback(async () => {
     if (isSubmitting) return;
 
-    const trimmed = password.trim();
-    if (!trimmed) {
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError("请输入用户名");
+      return;
+    }
+    const trimmedPassword = password.trim();
+    if (!trimmedPassword) {
       setError("请输入密码");
       return;
     }
@@ -74,7 +82,9 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
     setError(null);
 
     try {
-      const encoded = base64EncodeUtf8(`admin:${trimmed}`);
+      const encoded = base64EncodeUtf8(
+        `${trimmedUsername}:${trimmedPassword}`,
+      );
       const normalizedApiBase = normalizeWebApiBase(apiBase);
       const previousApiBase = getStoredWebApiBase();
       const nextApiBase = normalizedApiBase ?? null;
@@ -100,7 +110,11 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
         } else {
           clearWebApiBaseOverride();
         }
-        setWebCredentials(trimmed, normalizedApiBase ?? getWebApiBase());
+        setWebCredentials(
+          trimmedUsername,
+          trimmedPassword,
+          normalizedApiBase ?? getWebApiBase(),
+        );
         try {
           const tokenResponse = await fetch(
             buildWebApiUrlWithBase(effectiveApiBase, "/system/csrf-token"),
@@ -134,7 +148,7 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
       }
 
       if (response.status === 401) {
-        setError("密码错误");
+        setError("用户名或密码错误");
         return;
       }
 
@@ -145,16 +159,14 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [apiBase, isSubmitting, onLoginSuccess, password]);
+  }, [apiBase, isSubmitting, onLoginSuccess, password, username]);
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="max-w-sm">
         <DialogHeader className="space-y-2">
           <DialogTitle>登录</DialogTitle>
-          <DialogDescription>
-            用户名固定为 <span className="font-mono">admin</span>
-          </DialogDescription>
+          <DialogDescription>请输入用户名和密码</DialogDescription>
         </DialogHeader>
 
         <form
@@ -164,17 +176,6 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
             void handleLogin();
           }}
         >
-          {/* Hidden username field for accessibility and password managers */}
-          <input
-            type="text"
-            name="username"
-            autoComplete="username"
-            value="admin"
-            readOnly
-            aria-hidden="true"
-            tabIndex={-1}
-            className="sr-only"
-          />
           <div className="space-y-2">
             <Label htmlFor="cc-switch-web-api-base">API 地址 (可选)</Label>
             <div className="flex items-center gap-2">
@@ -218,13 +219,25 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
             ) : null}
           </div>
           <div className="space-y-2">
+            <Label htmlFor="cc-switch-web-username">用户名</Label>
+            <Input
+              id="cc-switch-web-username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              autoFocus
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="cc-switch-web-password">密码</Label>
             <Input
               id="cc-switch-web-password"
               name="password"
               type="password"
               autoComplete="current-password"
-              autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isSubmitting}

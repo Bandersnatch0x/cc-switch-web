@@ -13,6 +13,8 @@ export const settingsSchema = z.object({
   enableClaudePluginIntegration: z.boolean().optional(),
   claudeConfigDir: directorySchema.nullable().optional(),
   codexConfigDir: directorySchema.nullable().optional(),
+  geminiConfigDir: directorySchema.nullable().optional(),
+  opencodeConfigDir: directorySchema.nullable().optional(),
   language: z.enum(["en", "zh"]).optional(),
   customEndpointsClaude: z.record(z.string(), z.unknown()).optional(),
   customEndpointsCodex: z.record(z.string(), z.unknown()).optional(),

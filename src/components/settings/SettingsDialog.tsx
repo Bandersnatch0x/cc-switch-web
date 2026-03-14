@@ -11,7 +11,15 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { settingsApi } from "@/lib/api";
+import {
+  getStoredWebUsername,
+  getWebApiBase,
+  isWeb,
+  setWebCredentials,
+} from "@/lib/api/adapter";
 import { LanguageSettings } from "@/components/settings/LanguageSettings";
 import { ThemeSettings } from "@/components/settings/ThemeSettings";
 import { WindowSettings } from "@/components/settings/WindowSettings";
@@ -71,11 +79,21 @@ export function SettingsDialog({
 
   const [activeTab, setActiveTab] = useState<string>("general");
   const [showRestartPrompt, setShowRestartPrompt] = useState(false);
+  const [webUsername, setWebUsername] = useState("");
+  const [webPassword, setWebPassword] = useState("");
+  const [webPasswordConfirm, setWebPasswordConfirm] = useState("");
+  const [isUpdatingWebCredentials, setIsUpdatingWebCredentials] =
+    useState(false);
 
   useEffect(() => {
     if (open) {
       setActiveTab("general");
       resetStatus();
+      if (isWeb()) {
+        setWebUsername(getStoredWebUsername());
+        setWebPassword("");
+        setWebPasswordConfirm("");
+      }
     }
   }, [open, resetStatus]);
 
@@ -161,6 +179,82 @@ export function SettingsDialog({
   }, [closeAfterSave, t]);
 
   const isBusy = useMemo(() => isLoading && !settings, [isLoading, settings]);
+  const showWebCredentials = useMemo(() => isWeb(), []);
+
+  const handleUpdateWebCredentials = useCallback(async () => {
+    if (isUpdatingWebCredentials) return;
+
+    const trimmedUsername = webUsername.trim();
+    const trimmedPassword = webPassword.trim();
+    const trimmedConfirm = webPasswordConfirm.trim();
+    if (!trimmedUsername || !trimmedPassword || !trimmedConfirm) {
+      toast.error(
+        t("settings.webCredentials.validation.required", {
+          defaultValue: "请输入用户名和密码",
+        }),
+      );
+      return;
+    }
+    if (trimmedUsername.includes(":")) {
+      toast.error(
+        t("settings.webCredentials.validation.invalidUsername", {
+          defaultValue: "用户名不能包含 ':'",
+        }),
+      );
+      return;
+    }
+    if (trimmedPassword !== trimmedConfirm) {
+      toast.error(
+        t("settings.webCredentials.validation.passwordMismatch", {
+          defaultValue: "两次输入的密码不一致",
+        }),
+      );
+      return;
+    }
+    if (trimmedPassword.length < 8) {
+      toast.error(
+        t("settings.webCredentials.validation.passwordTooShort", {
+          defaultValue: "密码至少需要 8 个字符",
+          min: 8,
+        }),
+      );
+      return;
+    }
+
+    setIsUpdatingWebCredentials(true);
+    try {
+      const result = await settingsApi.updateWebCredentials(
+        trimmedUsername,
+        trimmedPassword,
+      );
+      if (!result) {
+        throw new Error(
+          t("settings.webCredentials.updateFailed", {
+            defaultValue: "更新失败",
+          }),
+        );
+      }
+      setWebCredentials(trimmedUsername, trimmedPassword, getWebApiBase());
+      setWebUsername(trimmedUsername);
+      setWebPassword("");
+      setWebPasswordConfirm("");
+      toast.success(
+        t("settings.webCredentials.updateSuccess", {
+          defaultValue: "Web 登录凭据已更新",
+        }),
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t("settings.webCredentials.updateFailed", {
+              defaultValue: "更新失败",
+            });
+      toast.error(message);
+    } finally {
+      setIsUpdatingWebCredentials(false);
+    }
+  }, [isUpdatingWebCredentials, webPassword, webPasswordConfirm, webUsername]);
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -230,6 +324,7 @@ export function SettingsDialog({
                       claudeDir={settings.claudeConfigDir}
                       codexDir={settings.codexConfigDir}
                       geminiDir={settings.geminiConfigDir}
+                      opencodeDir={settings.opencodeConfigDir}
                       onDirectoryChange={updateDirectory}
                       onBrowseDirectory={browseDirectory}
                       onResetDirectory={resetDirectory}
@@ -246,6 +341,89 @@ export function SettingsDialog({
                       onExport={exportConfig}
                       onClear={clearSelection}
                     />
+                    {showWebCredentials ? (
+                      <section className="space-y-3">
+                        <div>
+                          <h3 className="text-sm font-medium">
+                            {t("settings.webCredentials.title", {
+                              defaultValue: "Web 登录凭据",
+                            })}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {t("settings.webCredentials.description", {
+                              defaultValue: "更新 Web 模式的用户名与密码。",
+                            })}
+                          </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="cc-switch-web-cred-username">
+                              {t("settings.webCredentials.username", {
+                                defaultValue: "用户名",
+                              })}
+                            </Label>
+                            <Input
+                              id="cc-switch-web-cred-username"
+                              name="web-username"
+                              type="text"
+                              autoComplete="username"
+                              value={webUsername}
+                              onChange={(e) => setWebUsername(e.target.value)}
+                              disabled={isUpdatingWebCredentials}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="cc-switch-web-cred-password">
+                              {t("settings.webCredentials.password", {
+                                defaultValue: "密码",
+                              })}
+                            </Label>
+                            <Input
+                              id="cc-switch-web-cred-password"
+                              name="web-password"
+                              type="password"
+                              autoComplete="new-password"
+                              value={webPassword}
+                              onChange={(e) => setWebPassword(e.target.value)}
+                              disabled={isUpdatingWebCredentials}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="cc-switch-web-cred-password-confirm">
+                              {t("settings.webCredentials.confirmPassword", {
+                                defaultValue: "确认密码",
+                              })}
+                            </Label>
+                            <Input
+                              id="cc-switch-web-cred-password-confirm"
+                              name="web-password-confirm"
+                              type="password"
+                              autoComplete="new-password"
+                              value={webPasswordConfirm}
+                              onChange={(e) =>
+                                setWebPasswordConfirm(e.target.value)
+                              }
+                              disabled={isUpdatingWebCredentials}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Button
+                            type="button"
+                            onClick={() => void handleUpdateWebCredentials()}
+                            disabled={isUpdatingWebCredentials}
+                          >
+                            {isUpdatingWebCredentials
+                              ? t("settings.webCredentials.updating", {
+                                  defaultValue: "更新中...",
+                                })
+                              : t("settings.webCredentials.submit", {
+                                  defaultValue: "更新凭据",
+                                })}
+                          </Button>
+                        </div>
+                      </section>
+                    ) : null}
                   </>
                 ) : null}
               </TabsContent>

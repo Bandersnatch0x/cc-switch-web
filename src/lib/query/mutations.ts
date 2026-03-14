@@ -28,6 +28,10 @@ const getLiveConfigPath = (appId: AppId, dir: string): string => {
       return joinDisplayPath(dir, "config.toml");
     case "gemini":
       return joinDisplayPath(dir, ".env");
+    case "opencode":
+      return joinDisplayPath(dir, "opencode.json");
+    case "omo":
+      return joinDisplayPath(dir, "oh-my-opencode.jsonc");
     default:
       return dir;
   }

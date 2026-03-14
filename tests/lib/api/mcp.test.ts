@@ -30,7 +30,7 @@ describe("mcpApi", () => {
     id: "server-1",
     name: "Test Server",
     server: sampleSpec,
-    apps: { claude: true, codex: false, gemini: true },
+    apps: { claude: true, codex: false, gemini: true, opencode: false },
   };
   const sampleServers: McpServersMap = {
     [sampleServer.id]: sampleServer,

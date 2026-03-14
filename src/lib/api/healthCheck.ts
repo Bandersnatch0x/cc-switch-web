@@ -388,6 +388,8 @@ export function appIdToService(appId: AppId): "cc" | "cx" {
     case "codex":
       return "cx";
     case "gemini":
+    case "opencode":
+    case "omo":
       return "cc"; // Gemini 暂时映射到 cc（relay-pulse 未覆盖）
     default:
       return "cc";

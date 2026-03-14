@@ -59,6 +59,26 @@ const GEMINI_DEFAULT_CONFIG = JSON.stringify(
   null,
   2,
 );
+const OPENCODE_DEFAULT_CONFIG = JSON.stringify(
+  {
+    npm: "@ai-sdk/openai-compatible",
+    options: {
+      baseURL: "https://api.example.com/v1",
+      apiKey: "sk-xxxx",
+    },
+    models: {},
+  },
+  null,
+  2,
+);
+const OMO_DEFAULT_CONFIG = JSON.stringify(
+  {
+    agents: {},
+    categories: {},
+  },
+  null,
+  2,
+);
 
 type PresetEntry = {
   id: string;
@@ -93,6 +113,8 @@ export function ProviderForm({
 }: ProviderFormProps) {
   const { t } = useTranslation();
   const isEditMode = Boolean(initialData);
+  const supportsPresets =
+    appId === "claude" || appId === "codex" || appId === "gemini";
 
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
     initialData ? null : "custom",
@@ -146,7 +168,11 @@ export function ProviderForm({
           ? CODEX_DEFAULT_CONFIG
           : appId === "gemini"
             ? GEMINI_DEFAULT_CONFIG
-            : CLAUDE_DEFAULT_CONFIG,
+            : appId === "opencode"
+              ? OPENCODE_DEFAULT_CONFIG
+              : appId === "omo"
+                ? OMO_DEFAULT_CONFIG
+                : CLAUDE_DEFAULT_CONFIG,
     }),
     [initialData, appId],
   );
@@ -264,16 +290,20 @@ export function ProviderForm({
         id: `codex-${index}`,
         preset,
       }));
-    } else if (appId === "gemini") {
+    }
+    if (appId === "gemini") {
       return geminiProviderPresets.map<PresetEntry>((preset, index) => ({
         id: `gemini-${index}`,
         preset,
       }));
     }
-    return providerPresets.map<PresetEntry>((preset, index) => ({
-      id: `claude-${index}`,
-      preset,
-    }));
+    if (appId === "claude") {
+      return providerPresets.map<PresetEntry>((preset, index) => ({
+        id: `claude-${index}`,
+        preset,
+      }));
+    }
+    return [];
   }, [appId]);
 
   // 使用模板变量 hook (仅 Claude 模式)
@@ -298,6 +328,7 @@ export function ProviderForm({
     handleCommonConfigToggle,
     handleCommonConfigSnippetChange,
   } = useCommonConfigSnippet({
+    enabled: appId === "claude",
     settingsConfig: settingsConfigValue,
     onConfigChange: (config) => form.setValue("settingsConfig", config),
     initialData: appId === "claude" ? initialData : undefined,
@@ -659,7 +690,7 @@ export function ProviderForm({
         className="space-y-6"
       >
         {/* 预设供应商选择（仅新增模式显示） */}
-        {!initialData && (
+        {!initialData && supportsPresets ? (
           <ProviderPresetSelector
             selectedPresetId={selectedPresetId}
             groupedPresets={groupedPresets}
@@ -668,7 +699,7 @@ export function ProviderForm({
             onPresetChange={handlePresetChange}
             category={category}
           />
-        )}
+        ) : null}
 
         {/* 基础字段 */}
         <BasicFormFields form={form} />
@@ -838,6 +869,7 @@ export function ProviderForm({
               onEditClick={() => setIsCommonConfigModalOpen(true)}
               isModalOpen={isCommonConfigModalOpen}
               onModalClose={() => setIsCommonConfigModalOpen(false)}
+              showCommonConfigControls={appId === "claude"}
             />
             {/* 配置验证错误显示 */}
             <FormField

@@ -1,9 +1,10 @@
 use serde_json::json;
-use std::{path::PathBuf, sync::RwLock};
+use std::{collections::HashMap, path::PathBuf, sync::RwLock};
 
 use cc_switch_lib::{
     get_codex_auth_path, get_codex_config_path, read_json_file, switch_provider_test_hook,
-    write_codex_live_atomic, AppError, AppState, AppType, MultiAppConfig, Provider,
+    write_codex_live_atomic, AppError, AppState, AppType, McpApps, McpServer, MultiAppConfig,
+    Provider,
 };
 
 #[path = "support.rs"]
@@ -328,5 +329,199 @@ fn switch_provider_codex_missing_auth_returns_error_and_keeps_state() {
     assert!(
         manager.current.is_empty(),
         "current provider should remain empty on failure"
+    );
+}
+
+#[test]
+fn switch_provider_omo_rolls_back_opencode_plugin_when_post_commit_fails() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let opencode_dir = home.join(".config").join("opencode");
+    std::fs::create_dir_all(&opencode_dir).expect("create opencode dir");
+
+    let opencode_path = opencode_dir.join("opencode.json");
+    std::fs::write(
+        &opencode_path,
+        serde_json::to_string_pretty(&json!({
+            "$schema": "https://opencode.ai/config.json",
+            "plugin": ["existing-plugin@1.0.0"]
+        }))
+        .expect("serialize opencode config"),
+    )
+    .expect("write opencode config");
+
+    let omo_path = opencode_dir.join("oh-my-opencode.jsonc");
+    std::fs::write(
+        &omo_path,
+        serde_json::to_string_pretty(&json!({
+            "agents": { "legacy-agent": {} },
+            "categories": {}
+        }))
+        .expect("serialize omo config"),
+    )
+    .expect("write omo config");
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config.get_manager_mut(&AppType::Omo).expect("omo manager");
+        manager.current = "old-omo".to_string();
+        manager.providers.insert(
+            "old-omo".to_string(),
+            Provider::with_id(
+                "old-omo".to_string(),
+                "Old OMO".to_string(),
+                json!({
+                    "agents": { "legacy-agent": {} },
+                    "categories": {}
+                }),
+                None,
+            ),
+        );
+        manager.providers.insert(
+            "new-omo".to_string(),
+            Provider::with_id(
+                "new-omo".to_string(),
+                "New OMO".to_string(),
+                json!({
+                    "agents": { "new-agent": {} },
+                    "categories": {}
+                }),
+                None,
+            ),
+        );
+    }
+
+    config.mcp.servers = Some(HashMap::from([(
+        "broken-server".to_string(),
+        McpServer {
+            id: "broken-server".to_string(),
+            name: "Broken Server".to_string(),
+            server: json!({
+                "type": "unknown"
+            }),
+            apps: McpApps {
+                opencode: true,
+                ..McpApps::default()
+            },
+            description: None,
+            homepage: None,
+            docs: None,
+            tags: Vec::new(),
+        },
+    )]));
+
+    let app_state = AppState {
+        config: RwLock::new(config),
+    };
+
+    let err = switch_provider_test_hook(&app_state, AppType::Omo, "new-omo")
+        .expect_err("post-commit failure should bubble up");
+    assert!(
+        err.to_string().contains("Unknown MCP type"),
+        "unexpected error: {err}"
+    );
+
+    let locked = app_state.config.read().expect("lock config after failure");
+    let manager = locked.get_manager(&AppType::Omo).expect("omo manager");
+    assert_eq!(
+        manager.current, "old-omo",
+        "failed switch should restore previous current provider"
+    );
+    drop(locked);
+
+    let restored_omo: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&omo_path).expect("read restored omo"))
+            .expect("parse restored omo");
+    assert!(
+        restored_omo
+            .get("agents")
+            .and_then(|agents| agents.get("legacy-agent"))
+            .is_some(),
+        "omo config should roll back to the previous file contents"
+    );
+    assert!(
+        restored_omo
+            .get("agents")
+            .and_then(|agents| agents.get("new-agent"))
+            .is_none(),
+        "new omo config should not remain after rollback"
+    );
+
+    let restored_opencode: serde_json::Value =
+        read_json_file(&opencode_path).expect("read restored opencode config");
+    assert_eq!(
+        restored_opencode
+            .get("plugin")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default(),
+        vec![json!("existing-plugin@1.0.0")],
+        "opencode plugin list should be restored after rollback"
+    );
+}
+
+#[test]
+fn switch_provider_omo_replaces_old_plugin_versions_with_latest() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let opencode_dir = home.join(".config").join("opencode");
+    std::fs::create_dir_all(&opencode_dir).expect("create opencode dir");
+
+    let opencode_path = opencode_dir.join("opencode.json");
+    std::fs::write(
+        &opencode_path,
+        serde_json::to_string_pretty(&json!({
+            "$schema": "https://opencode.ai/config.json",
+            "plugin": [
+                "existing-plugin@1.0.0",
+                "oh-my-opencode@0.3.0"
+            ]
+        }))
+        .expect("serialize opencode config"),
+    )
+    .expect("write opencode config");
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config.get_manager_mut(&AppType::Omo).expect("omo manager");
+        manager.current = "omo".to_string();
+        manager.providers.insert(
+            "omo".to_string(),
+            Provider::with_id(
+                "omo".to_string(),
+                "OMO".to_string(),
+                json!({
+                    "agents": { "agent-a": {} },
+                    "categories": {}
+                }),
+                None,
+            ),
+        );
+    }
+
+    let app_state = AppState {
+        config: RwLock::new(config),
+    };
+
+    switch_provider_test_hook(&app_state, AppType::Omo, "omo")
+        .expect("switch provider should succeed");
+
+    let stored: serde_json::Value =
+        read_json_file(&opencode_path).expect("read updated opencode config");
+    assert_eq!(
+        stored
+            .get("plugin")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default(),
+        vec![
+            json!("existing-plugin@1.0.0"),
+            json!("oh-my-opencode@latest")
+        ],
+        "legacy OMO plugin versions should be replaced with a single latest entry"
     );
 }

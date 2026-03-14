@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import type { AppId } from "@/lib/api";
 import {
   extractCodexBaseUrl,
   setCodexBaseUrl as setCodexBaseUrlInConfig,
@@ -6,7 +7,7 @@ import {
 import type { ProviderCategory } from "@/types";
 
 interface UseBaseUrlStateProps {
-  appType: "claude" | "codex" | "gemini";
+  appType: AppId;
   category: ProviderCategory | undefined;
   settingsConfig: string;
   codexConfig?: string;

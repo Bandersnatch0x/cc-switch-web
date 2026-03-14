@@ -69,6 +69,7 @@
     "addClaudeProvider": "添加 Claude Code 供应商",
     "addCodexProvider": "添加 Codex 供应商",
     "addGeminiProvider": "添加 Gemini 供应商",
+    "addProviderForApp": "添加 {{appName}} 供应商",
     "addProviderHint": "填写信息后即可在列表中快速切换供应商。",
     "editClaudeProvider": "编辑 Claude Code 供应商",
     "editCodexProvider": "编辑 Codex 供应商",
@@ -194,11 +195,14 @@
     "codexConfigDirDescription": "覆盖 Codex 配置目录。Windows + WSL 请填写 \\\\wsl$\\发行版\\home\\user\\.codex。",
     "geminiConfigDir": "Gemini 配置目录",
     "geminiConfigDirDescription": "覆盖 Gemini 配置目录 (.env)。Windows + WSL 请填写 \\\\wsl$\\发行版\\home\\user\\.gemini。",
+    "opencodeConfigDir": "OpenCode / OMO 配置目录",
+    "opencodeConfigDirDescription": "覆盖 OpenCode 与 oh-my-opencode 共用的配置目录。Windows + WSL 请填写 \\\\wsl$\\发行版\\home\\user\\.config\\opencode。",
     "currentWriteTarget": "当前实际写入路径：{{path}}",
     "homeMismatchHint": "检测到 Web 服务 HOME ({{serviceHome}}) 与账号 HOME ({{accountHome}}) 不一致；当前会写入 {{path}}。如需其他路径，请在这里显式覆盖。",
     "browsePlaceholderClaude": "例如：/home/<你的用户名>/.claude 或 \\\\wsl$\\Ubuntu\\home\\<你的用户名>\\.claude",
     "browsePlaceholderCodex": "例如：/home/<你的用户名>/.codex 或 \\\\wsl$\\Ubuntu\\home\\<你的用户名>\\.codex",
     "browsePlaceholderGemini": "例如：/home/<你的用户名>/.gemini 或 \\\\wsl$\\Ubuntu\\home\\<你的用户名>\\.gemini",
+    "browsePlaceholderOpencode": "例如：/home/<你的用户名>/.config/opencode 或 \\\\wsl$\\Ubuntu\\home\\<你的用户名>\\.config\\opencode",
     "browseDirectory": "浏览目录",
     "resetDefault": "恢复默认目录（需保存后生效）",
     "fillWslTemplate": "填充 WSL 模板路径",
@@ -228,6 +232,23 @@
     "restartLater": "稍后重启",
     "restartFailed": "应用重启失败，请手动关闭后重新打开。",
     "devModeRestartHint": "开发模式下不支持自动重启，请手动重新启动应用。",
+    "webCredentials": {
+      "title": "Web 登录凭据",
+      "description": "更新 Web 模式的用户名与密码。",
+      "username": "用户名",
+      "password": "密码",
+      "confirmPassword": "确认密码",
+      "submit": "更新凭据",
+      "updating": "更新中...",
+      "updateSuccess": "Web 登录凭据已更新",
+      "updateFailed": "更新失败",
+      "validation": {
+        "required": "请输入用户名和密码",
+        "invalidUsername": "用户名不能包含 ':'",
+        "passwordMismatch": "两次输入的密码不一致",
+        "passwordTooShort": "密码至少需要 {{min}} 个字符"
+      }
+    },
     "saving": "正在保存..."
   },
   "apps": {
@@ -469,7 +490,8 @@
       "apps": {
         "claude": "Claude",
         "codex": "Codex",
-        "gemini": "Gemini"
+        "gemini": "Gemini",
+        "opencode": "OpenCode"
       }
     },
     "userLevelPath": "用户级 MCP 配置路径",

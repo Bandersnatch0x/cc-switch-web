@@ -165,6 +165,26 @@ describe("McpFormModal", () => {
     expect(configTextarea.value).toBe('{\n  "type": "stdio",\n  "command": "preset-cmd"\n}');
   });
 
+  it("JSON 模式下格式化按钮保留 MCP 包装输入并成功格式化", async () => {
+    renderForm();
+
+    const configTextarea = screen.getByPlaceholderText(
+      "mcp.form.jsonPlaceholder",
+    ) as HTMLTextAreaElement;
+
+    fireEvent.change(configTextarea, {
+      target: { value: '{"my-server":{"command":"npx"}}' },
+    });
+
+    fireEvent.click(screen.getByText("common.format"));
+
+    await waitFor(() =>
+      expect(configTextarea.value).toBe('{\n  "command": "npx"\n}'),
+    );
+    expect(toastSuccessMock).toHaveBeenCalledWith("common.formatSuccess");
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
   it("提交时清洗字段并调用 upsert 与 onSave", async () => {
     const { onSave } = renderForm();
 
@@ -213,6 +233,7 @@ describe("McpFormModal", () => {
         claude: true,
         codex: true,
         gemini: true,
+        opencode: true,
       },
     });
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -323,7 +344,7 @@ type = "stdio"
       enabled: true,
       description: "Old desc",
       server: { type: "stdio", command: "old" },
-      apps: { claude: true, codex: false, gemini: false },
+      apps: { claude: true, codex: false, gemini: false, opencode: false },
     } as McpServer;
 
     const { onSave } = renderForm({
@@ -357,6 +378,7 @@ type = "stdio"
       claude: true,
       codex: false,
       gemini: false,
+      opencode: false,
     });
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledWith();
@@ -390,6 +412,12 @@ type = "stdio"
     expect(geminiCheckbox.checked).toBe(true);
     fireEvent.click(geminiCheckbox);
 
+    const opencodeCheckbox = screen.getByLabelText(
+      "mcp.unifiedPanel.apps.opencode",
+    ) as HTMLInputElement;
+    expect(opencodeCheckbox.checked).toBe(true);
+    fireEvent.click(opencodeCheckbox);
+
     fireEvent.click(screen.getByText("common.add"));
 
     await waitFor(() => expect(upsertMock).toHaveBeenCalledTimes(1));
@@ -399,6 +427,7 @@ type = "stdio"
       claude: false,
       codex: false,
       gemini: false,
+      opencode: false,
     });
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(toastErrorMock).not.toHaveBeenCalled();

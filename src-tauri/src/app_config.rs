@@ -365,7 +365,9 @@ impl Default for MultiAppConfig {
         let mut apps = HashMap::new();
         apps.insert("claude".to_string(), ProviderManager::default());
         apps.insert("codex".to_string(), ProviderManager::default());
-        apps.insert("gemini".to_string(), ProviderManager::default()); // 新增
+        apps.insert("gemini".to_string(), ProviderManager::default());
+        apps.insert("opencode".to_string(), ProviderManager::default());
+        apps.insert("omo".to_string(), ProviderManager::default());
 
         Self {
             version: 2,
@@ -429,11 +431,12 @@ impl MultiAppConfig {
             }
         }
 
-        // 确保 gemini 应用存在（兼容旧配置文件）
-        if !self.apps.contains_key("gemini") {
-            self.apps
-                .insert("gemini".to_string(), ProviderManager::default());
-            updated = true;
+        for app_id in ["gemini", "opencode", "omo"] {
+            if !self.apps.contains_key(app_id) {
+                self.apps
+                    .insert(app_id.to_string(), ProviderManager::default());
+                updated = true;
+            }
         }
 
         // 执行 MCP 迁移（v3.6.x → v3.7.0）

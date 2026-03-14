@@ -32,6 +32,13 @@ enum LiveSnapshot {
         env: Option<HashMap<String, String>>, // 新增
         config: Option<Value>,                // 新增：settings.json 内容
     },
+    Opencode {
+        config: Option<Value>,
+    },
+    Omo {
+        config: Option<Value>,
+        opencode_config: Option<Value>,
+    },
 }
 
 #[derive(Clone)]
@@ -92,6 +99,32 @@ impl LiveSnapshot {
                         delete_file(&settings_path)?;
                     }
                     _ => {}
+                }
+            }
+            LiveSnapshot::Opencode { config } => {
+                let path = crate::opencode_config::get_opencode_config_path();
+                if let Some(value) = config {
+                    write_json_file(&path, value)?;
+                } else if path.exists() {
+                    delete_file(&path)?;
+                }
+            }
+            LiveSnapshot::Omo {
+                config,
+                opencode_config,
+            } => {
+                let path = crate::omo_config::resolve_omo_config_path();
+                if let Some(value) = config {
+                    crate::omo_config::write_omo_config(value)?;
+                } else if path.exists() {
+                    delete_file(&path)?;
+                }
+
+                let opencode_path = crate::opencode_config::get_opencode_config_path();
+                if let Some(value) = opencode_config {
+                    crate::opencode_config::write_opencode_config(value)?;
+                } else if opencode_path.exists() {
+                    delete_file(&opencode_path)?;
                 }
             }
         }
@@ -664,7 +697,54 @@ impl ProviderService {
                 }
                 state.save()?;
             }
-            AppType::Opencode | AppType::Omo => return Err(Self::app_not_supported(app_type)),
+            AppType::Opencode => {
+                let config_path = crate::opencode_config::get_opencode_config_path();
+                if !config_path.exists() {
+                    return Err(AppError::localized(
+                        "opencode.live.missing",
+                        "OpenCode 配置文件不存在，无法刷新快照",
+                        "OpenCode config file missing; cannot refresh snapshot",
+                    ));
+                }
+
+                let live_after = crate::opencode_config::read_opencode_config()?;
+                let fragment = live_after
+                    .get("provider")
+                    .and_then(|value| value.get(provider_id))
+                    .cloned()
+                    .unwrap_or_else(|| json!({}));
+
+                {
+                    let mut guard = state.config.write().map_err(AppError::from)?;
+                    if let Some(manager) = guard.get_manager_mut(app_type) {
+                        if let Some(target) = manager.providers.get_mut(provider_id) {
+                            target.settings_config = fragment;
+                        }
+                    }
+                }
+                state.save()?;
+            }
+            AppType::Omo => {
+                let config_path = crate::omo_config::resolve_omo_config_path();
+                if !config_path.exists() {
+                    return Err(AppError::localized(
+                        "omo.live.missing",
+                        "oh-my-opencode 配置文件不存在，无法刷新快照",
+                        "oh-my-opencode config file missing; cannot refresh snapshot",
+                    ));
+                }
+
+                let live_after = crate::omo_config::read_omo_config()?;
+                {
+                    let mut guard = state.config.write().map_err(AppError::from)?;
+                    if let Some(manager) = guard.get_manager_mut(app_type) {
+                        if let Some(target) = manager.providers.get_mut(provider_id) {
+                            target.settings_config = live_after;
+                        }
+                    }
+                }
+                state.save()?;
+            }
         }
         Ok(())
     }
@@ -717,7 +797,33 @@ impl ProviderService {
                 };
                 Ok(LiveSnapshot::Gemini { env, config })
             }
-            AppType::Opencode | AppType::Omo => Err(Self::app_not_supported(app_type)),
+            AppType::Opencode => {
+                let path = crate::opencode_config::get_opencode_config_path();
+                let config = if path.exists() {
+                    Some(read_json_file::<Value>(&path)?)
+                } else {
+                    None
+                };
+                Ok(LiveSnapshot::Opencode { config })
+            }
+            AppType::Omo => {
+                let path = crate::omo_config::resolve_omo_config_path();
+                let config = if path.exists() {
+                    Some(crate::omo_config::read_omo_config()?)
+                } else {
+                    None
+                };
+                let opencode_path = crate::opencode_config::get_opencode_config_path();
+                let opencode_config = if opencode_path.exists() {
+                    Some(read_json_file::<Value>(&opencode_path)?)
+                } else {
+                    None
+                };
+                Ok(LiveSnapshot::Omo {
+                    config,
+                    opencode_config,
+                })
+            }
         }
     }
 
@@ -953,7 +1059,56 @@ impl ProviderService {
                     "config": config_obj
                 })
             }
-            AppType::Opencode | AppType::Omo => return Err(Self::app_not_supported(&app_type)),
+            AppType::Opencode => {
+                let providers = crate::opencode_config::get_providers()?;
+                if providers.is_empty() {
+                    return Err(AppError::localized(
+                        "opencode.live.missing",
+                        "OpenCode 配置文件不存在或不包含 provider",
+                        "OpenCode config missing or has no providers",
+                    ));
+                }
+
+                let mut provider_entries: Vec<(String, Value)> = providers.into_iter().collect();
+                provider_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+                let mut guard = state.config.write().map_err(AppError::from)?;
+                let manager = guard
+                    .get_manager_mut(&app_type)
+                    .ok_or_else(|| Self::app_not_found(&app_type))?;
+
+                for (provider_id, settings_config) in provider_entries {
+                    let mut provider = Provider::with_id(
+                        provider_id.clone(),
+                        provider_id.clone(),
+                        settings_config,
+                        None,
+                    );
+                    provider.category = Some("custom".to_string());
+                    manager.providers.insert(provider.id.clone(), provider);
+                }
+
+                let preferred_current = if manager.providers.contains_key("default") {
+                    Some("default".to_string())
+                } else {
+                    manager.providers.keys().min().cloned()
+                };
+                manager.current = preferred_current.unwrap_or_default();
+                drop(guard);
+                state.save()?;
+                return Ok(());
+            }
+            AppType::Omo => {
+                let config_path = crate::omo_config::resolve_omo_config_path();
+                if !config_path.exists() {
+                    return Err(AppError::localized(
+                        "omo.live.missing",
+                        "oh-my-opencode 配置文件不存在",
+                        "oh-my-opencode config file is missing",
+                    ));
+                }
+                crate::omo_config::read_omo_config()?
+            }
         };
 
         let mut provider = Provider::with_id(
@@ -979,7 +1134,7 @@ impl ProviderService {
         Ok(())
     }
 
-    /// Sync live settings into the default provider without switching current.
+    /// Sync live settings into the cached provider snapshot without switching current.
     pub fn sync_default_provider_from_live(
         state: &AppState,
         app_type: AppType,
@@ -987,6 +1142,16 @@ impl ProviderService {
     ) -> Result<(), AppError> {
         if matches!(app_type, AppType::Claude) {
             let _ = Self::normalize_claude_models_in_value(&mut live_settings);
+        }
+
+        match app_type {
+            AppType::Opencode => {
+                return Self::sync_current_opencode_provider_from_live(state, live_settings);
+            }
+            AppType::Omo => {
+                return Self::sync_current_provider_from_live(state, app_type, live_settings);
+            }
+            AppType::Claude | AppType::Codex | AppType::Gemini => {}
         }
 
         {
@@ -1013,6 +1178,65 @@ impl ProviderService {
 
         state.save()?;
         Ok(())
+    }
+
+    fn sync_current_provider_from_live(
+        state: &AppState,
+        app_type: AppType,
+        live_settings: Value,
+    ) -> Result<(), AppError> {
+        {
+            let mut config = state.config.write().map_err(AppError::from)?;
+            let manager = config
+                .get_manager_mut(&app_type)
+                .ok_or_else(|| Self::app_not_found(&app_type))?;
+
+            let current_id = manager.current.clone();
+            if current_id.is_empty() {
+                return Ok(());
+            }
+
+            if let Some(existing) = manager.providers.get_mut(&current_id) {
+                existing.settings_config = live_settings;
+                if existing.category.is_none() {
+                    existing.category = Some("custom".to_string());
+                }
+            } else {
+                let mut provider =
+                    Provider::with_id(current_id.clone(), current_id, live_settings, None);
+                provider.category = Some("custom".to_string());
+                manager.providers.insert(provider.id.clone(), provider);
+            }
+        }
+
+        state.save()?;
+        Ok(())
+    }
+
+    fn sync_current_opencode_provider_from_live(
+        state: &AppState,
+        live_settings: Value,
+    ) -> Result<(), AppError> {
+        let fragment = {
+            let config = state.config.read().map_err(AppError::from)?;
+            let manager = config
+                .get_manager(&AppType::Opencode)
+                .ok_or_else(|| Self::app_not_found(&AppType::Opencode))?;
+            if manager.current.is_empty() {
+                return Ok(());
+            }
+
+            live_settings
+                .get("provider")
+                .and_then(|value| value.get(&manager.current))
+                .cloned()
+        };
+
+        let Some(fragment) = fragment else {
+            return Ok(());
+        };
+
+        Self::sync_current_provider_from_live(state, AppType::Opencode, fragment)
     }
 
     /// 读取当前 live 配置
@@ -1070,7 +1294,28 @@ impl ProviderService {
                     "config": config_obj
                 }))
             }
-            AppType::Opencode | AppType::Omo => Err(Self::app_not_supported(&app_type)),
+            AppType::Opencode => {
+                let path = crate::opencode_config::get_opencode_config_path();
+                if !path.exists() {
+                    return Err(AppError::localized(
+                        "opencode.live.missing",
+                        "OpenCode 配置文件不存在",
+                        "OpenCode config file is missing",
+                    ));
+                }
+                crate::opencode_config::read_opencode_config()
+            }
+            AppType::Omo => {
+                let path = crate::omo_config::resolve_omo_config_path();
+                if !path.exists() {
+                    return Err(AppError::localized(
+                        "omo.live.missing",
+                        "oh-my-opencode 配置文件不存在",
+                        "oh-my-opencode config file is missing",
+                    ));
+                }
+                crate::omo_config::read_omo_config()
+            }
         }
     }
 
@@ -1381,9 +1626,8 @@ impl ProviderService {
                 AppType::Codex => Self::prepare_switch_codex(config, &provider_id_owned)?,
                 AppType::Claude => Self::prepare_switch_claude(config, &provider_id_owned)?,
                 AppType::Gemini => Self::prepare_switch_gemini(config, &provider_id_owned)?,
-                AppType::Opencode | AppType::Omo => {
-                    return Err(Self::app_not_supported(&app_type_clone));
-                }
+                AppType::Opencode => Self::prepare_switch_opencode(config, &provider_id_owned)?,
+                AppType::Omo => Self::prepare_switch_omo(config, &provider_id_owned)?,
             };
 
             let action = PostCommitAction {
@@ -1539,6 +1783,60 @@ impl ProviderService {
         Ok(provider)
     }
 
+    fn prepare_switch_opencode(
+        config: &mut MultiAppConfig,
+        provider_id: &str,
+    ) -> Result<Provider, AppError> {
+        let provider = config
+            .get_manager(&AppType::Opencode)
+            .ok_or_else(|| Self::app_not_found(&AppType::Opencode))?
+            .providers
+            .get(provider_id)
+            .cloned()
+            .ok_or_else(|| {
+                AppError::localized(
+                    "provider.not_found",
+                    format!("供应商不存在: {provider_id}"),
+                    format!("Provider not found: {provider_id}"),
+                )
+            })?;
+
+        Self::backfill_opencode_current(config, provider_id)?;
+
+        if let Some(manager) = config.get_manager_mut(&AppType::Opencode) {
+            manager.current = provider_id.to_string();
+        }
+
+        Ok(provider)
+    }
+
+    fn prepare_switch_omo(
+        config: &mut MultiAppConfig,
+        provider_id: &str,
+    ) -> Result<Provider, AppError> {
+        let provider = config
+            .get_manager(&AppType::Omo)
+            .ok_or_else(|| Self::app_not_found(&AppType::Omo))?
+            .providers
+            .get(provider_id)
+            .cloned()
+            .ok_or_else(|| {
+                AppError::localized(
+                    "provider.not_found",
+                    format!("供应商不存在: {provider_id}"),
+                    format!("Provider not found: {provider_id}"),
+                )
+            })?;
+
+        Self::backfill_omo_current(config, provider_id)?;
+
+        if let Some(manager) = config.get_manager_mut(&AppType::Omo) {
+            manager.current = provider_id.to_string();
+        }
+
+        Ok(provider)
+    }
+
     fn backfill_claude_current(
         config: &mut MultiAppConfig,
         next_provider: &str,
@@ -1604,6 +1902,62 @@ impl ProviderService {
         if let Some(manager) = config.get_manager_mut(&AppType::Gemini) {
             if let Some(current) = manager.providers.get_mut(&current_id) {
                 current.settings_config = live;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backfill_opencode_current(
+        config: &mut MultiAppConfig,
+        next_provider: &str,
+    ) -> Result<(), AppError> {
+        let current_id = config
+            .get_manager(&AppType::Opencode)
+            .map(|manager| manager.current.clone())
+            .unwrap_or_default();
+        if current_id.is_empty() || current_id == next_provider {
+            return Ok(());
+        }
+
+        let live_config = crate::opencode_config::read_opencode_config()?;
+        let current_settings = live_config
+            .get("provider")
+            .and_then(|value| value.get(&current_id))
+            .cloned();
+
+        if let Some(settings) = current_settings {
+            if let Some(manager) = config.get_manager_mut(&AppType::Opencode) {
+                if let Some(current) = manager.providers.get_mut(&current_id) {
+                    current.settings_config = settings;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backfill_omo_current(
+        config: &mut MultiAppConfig,
+        next_provider: &str,
+    ) -> Result<(), AppError> {
+        let current_id = config
+            .get_manager(&AppType::Omo)
+            .map(|manager| manager.current.clone())
+            .unwrap_or_default();
+        if current_id.is_empty() || current_id == next_provider {
+            return Ok(());
+        }
+
+        let path = crate::omo_config::resolve_omo_config_path();
+        if !path.exists() {
+            return Ok(());
+        }
+
+        let live_config = crate::omo_config::read_omo_config()?;
+        if let Some(manager) = config.get_manager_mut(&AppType::Omo) {
+            if let Some(current) = manager.providers.get_mut(&current_id) {
+                current.settings_config = live_config;
             }
         }
 
@@ -1692,12 +2046,51 @@ impl ProviderService {
         Ok(())
     }
 
+    fn write_opencode_live(provider: &Provider) -> Result<(), AppError> {
+        let settings = provider.settings_config.as_object().ok_or_else(|| {
+            AppError::localized(
+                "provider.opencode.settings.not_object",
+                "OpenCode 配置必须是 JSON 对象",
+                "OpenCode configuration must be a JSON object",
+            )
+        })?;
+
+        let fragment = if settings.contains_key("$schema") || settings.contains_key("provider") {
+            settings
+                .get("provider")
+                .and_then(|value| value.get(&provider.id))
+                .cloned()
+                .unwrap_or_else(|| provider.settings_config.clone())
+        } else {
+            provider.settings_config.clone()
+        };
+
+        crate::opencode_config::set_provider(&provider.id, fragment)?;
+        Ok(())
+    }
+
+    fn write_omo_live(provider: &Provider) -> Result<(), AppError> {
+        if !provider.settings_config.is_object() {
+            return Err(AppError::localized(
+                "provider.omo.settings.not_object",
+                "oh-my-opencode 配置必须是 JSON 对象",
+                "oh-my-opencode configuration must be a JSON object",
+            ));
+        }
+
+        crate::omo_config::write_omo_config(&provider.settings_config)?;
+        crate::opencode_config::remove_plugin_by_prefix("oh-my-opencode")?;
+        crate::opencode_config::add_plugin("oh-my-opencode@latest")?;
+        Ok(())
+    }
+
     fn write_live_snapshot(app_type: &AppType, provider: &Provider) -> Result<(), AppError> {
         match app_type {
             AppType::Codex => Self::write_codex_live(provider),
             AppType::Claude => Self::write_claude_live(provider),
             AppType::Gemini => Self::write_gemini_live(provider), // 新增
-            AppType::Opencode | AppType::Omo => Err(Self::app_not_supported(app_type)),
+            AppType::Opencode => Self::write_opencode_live(provider),
+            AppType::Omo => Self::write_omo_live(provider),
         }
     }
 
@@ -1757,7 +2150,24 @@ impl ProviderService {
                 use crate::gemini_config::validate_gemini_settings;
                 validate_gemini_settings(&provider.settings_config)?
             }
-            AppType::Opencode | AppType::Omo => return Err(Self::app_not_supported(app_type)),
+            AppType::Opencode => {
+                if !provider.settings_config.is_object() {
+                    return Err(AppError::localized(
+                        "provider.opencode.settings.not_object",
+                        "OpenCode 配置必须是 JSON 对象",
+                        "OpenCode configuration must be a JSON object",
+                    ));
+                }
+            }
+            AppType::Omo => {
+                if !provider.settings_config.is_object() {
+                    return Err(AppError::localized(
+                        "provider.omo.settings.not_object",
+                        "oh-my-opencode 配置必须是 JSON 对象",
+                        "oh-my-opencode configuration must be a JSON object",
+                    ));
+                }
+            }
         }
 
         // 🔧 验证并清理 UsageScript 配置（所有应用类型通用）
@@ -1916,7 +2326,53 @@ impl ProviderService {
 
                 Ok((api_key, base_url))
             }
-            AppType::Opencode | AppType::Omo => Err(Self::app_not_supported(app_type)),
+            AppType::Opencode => {
+                let settings = provider.settings_config.as_object().ok_or_else(|| {
+                    AppError::localized(
+                        "provider.opencode.settings.not_object",
+                        "OpenCode 配置必须是 JSON 对象",
+                        "OpenCode configuration must be a JSON object",
+                    )
+                })?;
+
+                let options = settings
+                    .get("options")
+                    .and_then(|value| value.as_object())
+                    .ok_or_else(|| {
+                        AppError::localized(
+                            "provider.opencode.options.missing",
+                            "OpenCode 配置缺少 options 字段",
+                            "OpenCode configuration is missing options",
+                        )
+                    })?;
+
+                let api_key = options
+                    .get("apiKey")
+                    .and_then(|value| value.as_str())
+                    .ok_or_else(|| {
+                        AppError::localized(
+                            "provider.opencode.api_key.missing",
+                            "缺少 OpenCode API Key",
+                            "OpenCode API key is missing",
+                        )
+                    })?
+                    .to_string();
+
+                let base_url = options
+                    .get("baseURL")
+                    .and_then(|value| value.as_str())
+                    .ok_or_else(|| {
+                        AppError::localized(
+                            "provider.opencode.base_url.missing",
+                            "缺少 OpenCode baseURL",
+                            "OpenCode baseURL is missing",
+                        )
+                    })?
+                    .to_string();
+
+                Ok((api_key, base_url))
+            }
+            AppType::Omo => Err(Self::app_not_supported(app_type)),
         }
     }
 
@@ -1985,7 +2441,10 @@ impl ProviderService {
             AppType::Gemini => {
                 // Gemini 使用单一的 .env 文件，不需要删除单独的供应商配置文件
             }
-            AppType::Opencode | AppType::Omo => return Err(Self::app_not_supported(&app_type)),
+            AppType::Opencode => {
+                crate::opencode_config::remove_provider(provider_id)?;
+            }
+            AppType::Omo => {}
         }
 
         {

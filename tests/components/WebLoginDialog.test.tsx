@@ -12,12 +12,15 @@ type AdapterMocks = {
   clearWebApiBaseOverride: ReturnType<typeof vi.fn>;
   clearWebCredentials: ReturnType<typeof vi.fn>;
   setWebCredentials: ReturnType<
-    typeof vi.fn<(value: string, apiBase?: string | null) => void>
+    typeof vi.fn<
+      (username: string, password: string, apiBase?: string | null) => void
+    >
   >;
   setWebApiBaseOverride: ReturnType<typeof vi.fn<(value: string) => void>>;
   base64EncodeUtf8: ReturnType<typeof vi.fn<() => string>>;
   getWebApiBase: ReturnType<typeof vi.fn<() => string>>;
   getStoredWebApiBase: ReturnType<typeof vi.fn<() => string | undefined>>;
+  getStoredWebUsername: ReturnType<typeof vi.fn<() => string>>;
   getWebApiBaseValidationError: ReturnType<
     typeof vi.fn<(value: string) => string | null>
   >;
@@ -31,11 +34,14 @@ const adapterMocks = vi.hoisted(() => ({
   ),
   clearWebApiBaseOverride: vi.fn(),
   clearWebCredentials: vi.fn(),
-  setWebCredentials: vi.fn<(value: string, apiBase?: string | null) => void>(),
+  setWebCredentials: vi.fn<
+    (username: string, password: string, apiBase?: string | null) => void
+  >(),
   setWebApiBaseOverride: vi.fn<(value: string) => void>(),
   base64EncodeUtf8: vi.fn(() => "encoded-value"),
   getWebApiBase: vi.fn(() => apiBaseForBuild),
   getStoredWebApiBase: vi.fn<() => string | undefined>(() => undefined),
+  getStoredWebUsername: vi.fn<() => string>(() => "admin"),
   getWebApiBaseValidationError: vi.fn<(value: string) => string | null>(
     () => null,
   ),
@@ -119,6 +125,7 @@ describe("WebLoginDialog", () => {
     expect(
       screen.getByLabelText("API 地址 (可选)"),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("用户名")).toBeInTheDocument();
     expect(screen.getByLabelText("密码")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
   });
@@ -163,12 +170,17 @@ describe("WebLoginDialog", () => {
 
     render(<WebLoginDialog open onLoginSuccess={vi.fn()} />);
 
+    const usernameInput = screen.getByLabelText(
+      "用户名",
+    ) as HTMLInputElement;
+    await user.clear(usernameInput);
+    await user.type(usernameInput, "alice");
     await user.type(screen.getByLabelText("密码"), "secret");
     await user.click(screen.getByRole("button", { name: "登录" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
-    expect(adapterMocks.base64EncodeUtf8).toHaveBeenCalledWith("admin:secret");
+    expect(adapterMocks.base64EncodeUtf8).toHaveBeenCalledWith("alice:secret");
     expect(adapterMocks.clearWebApiBaseOverride).toHaveBeenCalled();
     expect(adapterMocks.buildWebApiUrlWithBase).toHaveBeenCalledWith(
       "/custom-api",
@@ -277,7 +289,7 @@ describe("WebLoginDialog", () => {
     await user.type(screen.getByLabelText("密码"), "wrong");
     await user.click(screen.getByRole("button", { name: "登录" }));
 
-    expect(await screen.findByText("密码错误")).toBeInTheDocument();
+    expect(await screen.findByText("用户名或密码错误")).toBeInTheDocument();
   });
 
   it("calls onLoginSuccess on successful login", async () => {

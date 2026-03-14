@@ -57,8 +57,13 @@ vi.mock("@/components/providers/forms/GeminiFormFields", () => ({
 }));
 
 vi.mock("@/components/providers/forms/CommonConfigEditor", () => ({
-  CommonConfigEditor: ({ value, onChange }: any) => (
-    <div data-testid="common-config-editor">
+  CommonConfigEditor: ({ value, onChange, showCommonConfigControls }: any) => (
+    <div
+      data-testid="common-config-editor"
+      data-show-common-config-controls={String(
+        showCommonConfigControls ?? true,
+      )}
+    >
       <textarea
         data-testid="config-textarea"
         value={value}
@@ -210,7 +215,10 @@ vi.mock("@/utils/providerConfigUtils", () => ({
 }));
 
 vi.mock("@/utils/providerMetaUtils", () => ({
-  mergeProviderMeta: (existing: any, custom: any) => ({ ...existing, ...custom }),
+  mergeProviderMeta: (existing: any, custom: any) => ({
+    ...existing,
+    ...custom,
+  }),
 }));
 
 const defaultProps = {
@@ -239,12 +247,40 @@ describe("ProviderForm", () => {
     expect(screen.getByTestId("preset-selector")).toBeInTheDocument();
   });
 
+  it("hides preset selector for opencode and keeps raw json editor", () => {
+    render(<ProviderForm {...defaultProps} appId="opencode" />);
+
+    expect(screen.queryByTestId("preset-selector")).not.toBeInTheDocument();
+    expect(screen.getByTestId("common-config-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("common-config-editor")).toHaveAttribute(
+      "data-show-common-config-controls",
+      "false",
+    );
+    expect(
+      (screen.getByTestId("config-textarea") as HTMLTextAreaElement).value,
+    ).toContain("@ai-sdk/openai-compatible");
+  });
+
+  it("uses omo default json template without preset selector", () => {
+    render(<ProviderForm {...defaultProps} appId="omo" />);
+
+    expect(screen.queryByTestId("preset-selector")).not.toBeInTheDocument();
+    expect(screen.getByTestId("common-config-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("common-config-editor")).toHaveAttribute(
+      "data-show-common-config-controls",
+      "false",
+    );
+    expect(
+      (screen.getByTestId("config-textarea") as HTMLTextAreaElement).value,
+    ).toContain('"agents"');
+  });
+
   it("hides preset selector in edit mode", () => {
     render(
       <ProviderForm
         {...defaultProps}
         initialData={{ name: "Existing Provider" }}
-      />
+      />,
     );
 
     expect(screen.queryByTestId("preset-selector")).not.toBeInTheDocument();
@@ -273,8 +309,14 @@ describe("ProviderForm", () => {
   });
 
   it("renders config editor based on appId", () => {
-    const { rerender } = render(<ProviderForm {...defaultProps} appId="claude" />);
+    const { rerender } = render(
+      <ProviderForm {...defaultProps} appId="claude" />,
+    );
     expect(screen.getByTestId("common-config-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("common-config-editor")).toHaveAttribute(
+      "data-show-common-config-controls",
+      "true",
+    );
 
     rerender(<ProviderForm {...defaultProps} appId="codex" />);
     expect(screen.getByTestId("codex-config-editor")).toBeInTheDocument();
@@ -286,15 +328,21 @@ describe("ProviderForm", () => {
   it("shows buttons by default", () => {
     render(<ProviderForm {...defaultProps} />);
 
-    expect(screen.getByRole("button", { name: "common.cancel" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "common.cancel" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
   it("hides buttons when showButtons is false", () => {
     render(<ProviderForm {...defaultProps} showButtons={false} />);
 
-    expect(screen.queryByRole("button", { name: "common.cancel" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "common.cancel" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" }),
+    ).not.toBeInTheDocument();
   });
 
   it("calls onCancel when cancel button clicked", async () => {
@@ -318,7 +366,9 @@ describe("ProviderForm", () => {
     await user.click(screen.getByText("Select Preset"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("selected-preset")).toHaveTextContent("claude-0");
+      expect(screen.getByTestId("selected-preset")).toHaveTextContent(
+        "claude-0",
+      );
     });
   });
 
@@ -332,11 +382,13 @@ describe("ProviderForm", () => {
           notes: "Some notes",
           settingsConfig: { env: { API_KEY: "test" } },
         }}
-      />
+      />,
     );
 
     expect(screen.getByTestId("name-input")).toHaveValue("My Provider");
-    expect(screen.getByTestId("website-input")).toHaveValue("https://example.com");
+    expect(screen.getByTestId("website-input")).toHaveValue(
+      "https://example.com",
+    );
   });
 
   it("submits form with correct values", async () => {

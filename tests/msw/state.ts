@@ -62,18 +62,52 @@ const createDefaultProviders = (): ProvidersByApp => ({
       createdAt: Date.now(),
     },
   },
+  opencode: {
+    "opencode-1": {
+      id: "opencode-1",
+      name: "OpenCode Default",
+      settingsConfig: {
+        npm: "@ai-sdk/openai-compatible",
+        options: {
+          apiKey: "test-key",
+          baseURL: "https://api.example.com/v1",
+        },
+        models: {},
+      },
+      category: "custom",
+      sortIndex: 0,
+      createdAt: Date.now(),
+    },
+  },
+  omo: {
+    "omo-1": {
+      id: "omo-1",
+      name: "OMO Default",
+      settingsConfig: {
+        agents: {},
+        categories: {},
+      },
+      category: "custom",
+      sortIndex: 0,
+      createdAt: Date.now(),
+    },
+  },
 });
 
 const createDefaultCurrent = (): CurrentProviderState => ({
   claude: "claude-1",
   codex: "codex-1",
   gemini: "gemini-1",
+  opencode: "opencode-1",
+  omo: "omo-1",
 });
 
 const createDefaultBackup = (): BackupProviderState => ({
   claude: null,
   codex: null,
   gemini: null,
+  opencode: null,
+  omo: null,
 });
 
 const createDefaultSkills = (): SkillsState => [
@@ -127,6 +161,8 @@ let settingsState: Settings = {
   enableClaudePluginIntegration: false,
   claudeConfigDir: "/default/claude",
   codexConfigDir: "/default/codex",
+  geminiConfigDir: "/default/gemini",
+  opencodeConfigDir: "/default/opencode",
   language: "zh",
 };
 let appConfigDirOverride: string | null = null;
@@ -136,7 +172,7 @@ let mcpConfigs: McpConfigState = {
       id: "sample",
       name: "Sample Claude Server",
       enabled: true,
-      apps: { claude: true, codex: false, gemini: false },
+      apps: { claude: true, codex: false, gemini: false, opencode: false },
       server: {
         type: "stdio",
         command: "claude-server",
@@ -148,7 +184,7 @@ let mcpConfigs: McpConfigState = {
       id: "httpServer",
       name: "HTTP Codex Server",
       enabled: false,
-      apps: { claude: false, codex: true, gemini: false },
+      apps: { claude: false, codex: true, gemini: false, opencode: false },
       server: {
         type: "http",
         url: "http://localhost:3000",
@@ -156,6 +192,8 @@ let mcpConfigs: McpConfigState = {
     },
   },
   gemini: {},
+  opencode: {},
+  omo: {},
 };
 const buildUnifiedMcpServers = (configs: McpConfigState): McpServersState => {
   const merged: McpServersState = {};
@@ -173,6 +211,7 @@ const buildUnifiedMcpServers = (configs: McpConfigState): McpServersState => {
           claude: existing.apps?.claude || server.apps?.claude || false,
           codex: existing.apps?.codex || server.apps?.codex || false,
           gemini: existing.apps?.gemini || server.apps?.gemini || false,
+          opencode: existing.apps?.opencode || server.apps?.opencode || false,
         },
       };
     });
@@ -202,6 +241,8 @@ export const resetProviderState = () => {
     enableClaudePluginIntegration: false,
     claudeConfigDir: "/default/claude",
     codexConfigDir: "/default/codex",
+    geminiConfigDir: "/default/gemini",
+    opencodeConfigDir: "/default/opencode",
     language: "zh",
   };
   appConfigDirOverride = null;
@@ -211,7 +252,12 @@ export const resetProviderState = () => {
         id: "sample",
         name: "Sample Claude Server",
         enabled: true,
-        apps: { claude: true, codex: false, gemini: false },
+        apps: {
+          claude: true,
+          codex: false,
+          gemini: false,
+          opencode: false,
+        },
         server: {
           type: "stdio",
           command: "claude-server",
@@ -223,7 +269,12 @@ export const resetProviderState = () => {
         id: "httpServer",
         name: "HTTP Codex Server",
         enabled: false,
-        apps: { claude: false, codex: true, gemini: false },
+        apps: {
+          claude: false,
+          codex: true,
+          gemini: false,
+          opencode: false,
+        },
         server: {
           type: "http",
           url: "http://localhost:3000",
@@ -231,6 +282,8 @@ export const resetProviderState = () => {
       },
     },
     gemini: {},
+    opencode: {},
+    omo: {},
   };
   mcpServers = buildUnifiedMcpServers(mcpConfigs);
 };
@@ -415,12 +468,14 @@ export const toggleMcpAppState = (
   enabled: boolean,
 ) => {
   if (!mcpServers[id]) return;
+  if (app === "omo") return;
   mcpServers[id] = {
     ...mcpServers[id],
     apps: {
       claude: mcpServers[id].apps?.claude || false,
       codex: mcpServers[id].apps?.codex || false,
       gemini: mcpServers[id].apps?.gemini || false,
+      opencode: mcpServers[id].apps?.opencode || false,
       [app]: enabled,
     },
   };
