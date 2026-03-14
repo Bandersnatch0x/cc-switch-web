@@ -63,13 +63,13 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
 
       if (!displayVersion) {
         await settingsApi.openExternal(
-          "https://github.com/Laliet/CC-Switch-Web/releases",
+          "https://github.com/Laliet/cc-switch-web/releases",
         );
         return;
       }
 
       await settingsApi.openExternal(
-        `https://github.com/Laliet/CC-Switch-Web/releases/tag/${displayVersion}`,
+        `https://github.com/Laliet/cc-switch-web/releases/tag/${displayVersion}`,
       );
     } catch (error) {
       console.error("[AboutSection] Failed to open release notes", error);

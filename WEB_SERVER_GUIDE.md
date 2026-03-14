@@ -3,6 +3,7 @@
 ## 概述
 
 CC-Switch 现在支持两种运行模式：
+
 1. **Tauri GUI 模式** - 原有的桌面应用（Windows/macOS/Linux）
 2. **Web Server 模式** - 新增的无头服务器模式（适用于云服务器）
 
@@ -264,6 +265,7 @@ Web 端完全复制了桌面端的所有功能：
 ### 自动环境检测
 
 前端代码会自动检测运行环境：
+
 - **Tauri 环境**: 使用 IPC 通信
 - **Web 环境**: 使用 HTTP API
 
@@ -358,7 +360,7 @@ GNU 版在 **Ubuntu 20.04 (glibc 2.31+)** 构建。
 ldd --version
 
 # 强制使用 musl 预编译（旧 glibc / Alpine）
-LIBC_VARIANT=musl curl -fsSL https://raw.githubusercontent.com/Laliet/CC-Switch-Web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
+LIBC_VARIANT=musl curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
 
 # Docker 兜底
 docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest
@@ -470,6 +472,7 @@ A: 重新编译并替换二进制文件，重启服务即可。
 欢迎提交 Issue 和 Pull Request！
 
 Web Server 模式的代码位于：
+
 - `/src-tauri/src/web_api/` - HTTP API 实现
 - `/src-tauri/src/bin/server.rs` - 服务器入口
 - `/src/lib/api/adapter.ts` - 前端适配器

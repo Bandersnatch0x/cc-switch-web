@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CC-Switch-Web Docker 一键部署脚本
+# cc-switch-web Docker 一键部署脚本
 # 镜像：ghcr.io/laliet/cc-switch-web
 # 选项：
 #   -p, --port      指定端口（默认 3000）

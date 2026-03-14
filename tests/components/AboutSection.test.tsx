@@ -11,14 +11,12 @@ const openExternalMock = vi.hoisted(() => vi.fn());
 const checkUpdatesMock = vi.hoisted(() => vi.fn());
 const useUpdateMock = vi.hoisted(() => vi.fn());
 
-const tMock = vi.fn(
-  (key: string, options?: Record<string, unknown>) => {
-    if (options && typeof options === "object" && "version" in options) {
-      return `${key}:${String(options.version ?? "")}`;
-    }
-    return key;
-  },
-);
+const tMock = vi.fn((key: string, options?: Record<string, unknown>) => {
+  if (options && typeof options === "object" && "version" in options) {
+    return `${key}:${String(options.version ?? "")}`;
+  }
+  return key;
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -97,7 +95,9 @@ describe("AboutSection", () => {
       expect(screen.getByText(/v1\.2\.3/)).toBeInTheDocument(),
     );
     await waitFor(() =>
-      expect(container.querySelector("svg.animate-spin")).not.toBeInTheDocument(),
+      expect(
+        container.querySelector("svg.animate-spin"),
+      ).not.toBeInTheDocument(),
     );
     expect(getCurrentVersionMock).toHaveBeenCalledTimes(1);
   });
@@ -233,7 +233,7 @@ describe("AboutSection", () => {
 
     await waitFor(() =>
       expect(openExternalMock).toHaveBeenCalledWith(
-        "https://github.com/Laliet/CC-Switch-Web/releases/tag/v2.1.0",
+        "https://github.com/Laliet/cc-switch-web/releases/tag/v2.1.0",
       ),
     );
   });

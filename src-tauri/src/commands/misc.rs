@@ -28,7 +28,7 @@ pub async fn check_for_updates(handle: AppHandle) -> Result<bool, String> {
     handle
         .opener()
         .open_url(
-            "https://github.com/Laliet/CC-Switch-Web/releases/latest",
+            "https://github.com/Laliet/cc-switch-web/releases/latest",
             None::<String>,
         )
         .map_err(|e| format!("打开更新页面失败: {e}"))?;
