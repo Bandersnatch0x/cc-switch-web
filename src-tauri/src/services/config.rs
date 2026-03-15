@@ -430,7 +430,7 @@ impl ConfigService {
     }
 
     fn sync_opencode_live(config: &mut MultiAppConfig) -> Result<(), AppError> {
-        let providers: Vec<(String, Provider)> = config
+        let mut providers: Vec<(String, Provider)> = config
             .get_manager(&AppType::Opencode)
             .map(|manager| {
                 manager
@@ -441,19 +441,34 @@ impl ConfigService {
             })
             .unwrap_or_default();
 
+        providers.sort_by(|(left, _), (right, _)| left.cmp(right));
+
         for (provider_id, provider) in providers {
-            ProviderService::write_opencode_live(&provider)?;
+            let fragment_result = (|| -> Result<Value, AppError> {
+                ProviderService::write_opencode_live(&provider)?;
 
-            let live_after = crate::opencode_config::read_opencode_config()?;
-            let fragment = live_after
-                .get("provider")
-                .and_then(|value| value.get(&provider_id))
-                .cloned()
-                .unwrap_or_else(|| provider.settings_config.clone());
+                let live_after = crate::opencode_config::read_opencode_config()?;
+                Ok(live_after
+                    .get("provider")
+                    .and_then(|value| value.get(&provider_id))
+                    .cloned()
+                    .unwrap_or_else(|| provider.settings_config.clone()))
+            })();
 
-            if let Some(manager) = config.get_manager_mut(&AppType::Opencode) {
-                if let Some(target) = manager.providers.get_mut(&provider_id) {
-                    target.settings_config = fragment;
+            match fragment_result {
+                Ok(fragment) => {
+                    if let Some(manager) = config.get_manager_mut(&AppType::Opencode) {
+                        if let Some(target) = manager.providers.get_mut(&provider_id) {
+                            target.settings_config = fragment;
+                        }
+                    }
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Failed to sync OpenCode provider '{}' to live config: {}",
+                        provider_id,
+                        err
+                    );
                 }
             }
         }

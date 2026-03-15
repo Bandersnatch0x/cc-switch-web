@@ -1083,6 +1083,107 @@ fn sync_gemini_google_official_sets_oauth_security() {
 }
 
 #[test]
+fn sync_opencode_live_skips_invalid_provider_and_keeps_valid_ones() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let opencode_dir = home.join(".config").join("opencode");
+    fs::create_dir_all(&opencode_dir).expect("create opencode dir");
+    let opencode_path = opencode_dir.join("opencode.json");
+
+    fs::write(
+        &opencode_path,
+        serde_json::to_string_pretty(&json!({
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+                "legacy": {
+                    "options": {
+                        "apiKey": "legacy-key",
+                        "baseURL": "https://legacy.example.com"
+                    }
+                }
+            }
+        }))
+        .expect("serialize opencode config"),
+    )
+    .expect("write opencode config");
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config
+            .get_manager_mut(&AppType::Opencode)
+            .expect("opencode manager");
+        manager.current = "valid".to_string();
+        manager.providers.insert(
+            "valid".to_string(),
+            Provider::with_id(
+                "valid".to_string(),
+                "Valid".to_string(),
+                json!({
+                    "options": {
+                        "apiKey": "valid-key",
+                        "baseURL": "https://valid.example.com"
+                    }
+                }),
+                None,
+            ),
+        );
+        manager.providers.insert(
+            "broken".to_string(),
+            Provider::with_id(
+                "broken".to_string(),
+                "Broken".to_string(),
+                json!({
+                    "$schema": "https://opencode.ai/config.json",
+                    "provider": {
+                        "other-provider": {
+                            "options": {
+                                "apiKey": "other-key",
+                                "baseURL": "https://other.example.com"
+                            }
+                        }
+                    }
+                }),
+                None,
+            ),
+        );
+    }
+
+    ConfigService::sync_current_providers_to_live(&mut config)
+        .expect("opencode sync should skip malformed providers instead of failing whole sync");
+
+    let stored: serde_json::Value = read_json_file(&opencode_path).expect("read opencode config");
+    assert_eq!(
+        stored
+            .get("provider")
+            .and_then(|providers| providers.get("valid"))
+            .and_then(|provider| provider.get("options"))
+            .and_then(|options| options.get("baseURL"))
+            .and_then(|value| value.as_str()),
+        Some("https://valid.example.com"),
+        "valid provider should still be synced to live config"
+    );
+    assert!(
+        stored
+            .get("provider")
+            .and_then(|providers| providers.get("broken"))
+            .is_none(),
+        "malformed provider should be skipped instead of being partially written"
+    );
+    assert_eq!(
+        stored
+            .get("provider")
+            .and_then(|providers| providers.get("legacy"))
+            .and_then(|provider| provider.get("options"))
+            .and_then(|options| options.get("baseURL"))
+            .and_then(|value| value.as_str()),
+        Some("https://legacy.example.com"),
+        "pre-existing providers should remain untouched"
+    );
+}
+
+#[test]
 fn export_config_to_file_writes_target_path() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     reset_test_fs();
