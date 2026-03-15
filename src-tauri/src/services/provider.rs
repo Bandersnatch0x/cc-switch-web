@@ -2055,15 +2055,32 @@ impl ProviderService {
             )
         })?;
 
-        let fragment = if settings.contains_key("$schema") || settings.contains_key("provider") {
-            settings
-                .get("provider")
-                .and_then(|value| value.get(&provider.id))
-                .cloned()
-                .unwrap_or_else(|| provider.settings_config.clone())
-        } else {
-            provider.settings_config.clone()
-        };
+        let fragment =
+            if let Some(providers) = settings.get("provider").and_then(|value| value.as_object()) {
+                providers.get(&provider.id).cloned().ok_or_else(|| {
+                    AppError::localized(
+                        "provider.opencode.fragment.missing",
+                        format!("OpenCode 配置缺少 provider.{}", provider.id),
+                        format!("OpenCode configuration is missing provider.{}", provider.id),
+                    )
+                })?
+            } else if settings.contains_key("$schema") {
+                return Err(AppError::localized(
+                    "provider.opencode.fragment.missing",
+                    format!("OpenCode 配置缺少 provider.{}", provider.id),
+                    format!("OpenCode configuration is missing provider.{}", provider.id),
+                ));
+            } else {
+                provider.settings_config.clone()
+            };
+
+        if !fragment.is_object() {
+            return Err(AppError::localized(
+                "provider.opencode.fragment.not_object",
+                format!("OpenCode provider.{} 必须是 JSON 对象", provider.id),
+                format!("OpenCode provider.{} must be a JSON object", provider.id),
+            ));
+        }
 
         crate::opencode_config::set_provider(&provider.id, fragment)?;
         Ok(())

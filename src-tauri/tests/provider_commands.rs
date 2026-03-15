@@ -525,3 +525,107 @@ fn switch_provider_omo_replaces_old_plugin_versions_with_latest() {
         "legacy OMO plugin versions should be replaced with a single latest entry"
     );
 }
+
+#[test]
+fn switch_provider_opencode_rejects_full_config_without_current_provider_fragment() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let opencode_dir = home.join(".config").join("opencode");
+    std::fs::create_dir_all(&opencode_dir).expect("create opencode dir");
+
+    let opencode_path = opencode_dir.join("opencode.json");
+    std::fs::write(
+        &opencode_path,
+        serde_json::to_string_pretty(&json!({
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+                "legacy": {
+                    "options": {
+                        "apiKey": "legacy-key",
+                        "baseURL": "https://legacy.example.com"
+                    }
+                }
+            }
+        }))
+        .expect("serialize opencode config"),
+    )
+    .expect("write opencode config");
+
+    let mut config = MultiAppConfig::default();
+    {
+        let manager = config
+            .get_manager_mut(&AppType::Opencode)
+            .expect("opencode manager");
+        manager.current = "legacy".to_string();
+        manager.providers.insert(
+            "legacy".to_string(),
+            Provider::with_id(
+                "legacy".to_string(),
+                "Legacy".to_string(),
+                json!({
+                    "options": {
+                        "apiKey": "legacy-key",
+                        "baseURL": "https://legacy.example.com"
+                    }
+                }),
+                None,
+            ),
+        );
+        manager.providers.insert(
+            "broken".to_string(),
+            Provider::with_id(
+                "broken".to_string(),
+                "Broken".to_string(),
+                json!({
+                    "$schema": "https://opencode.ai/config.json",
+                    "provider": {
+                        "other-provider": {
+                            "options": {
+                                "apiKey": "other-key",
+                                "baseURL": "https://other.example.com"
+                            }
+                        }
+                    }
+                }),
+                None,
+            ),
+        );
+    }
+
+    let app_state = AppState {
+        config: RwLock::new(config),
+    };
+
+    let err = switch_provider_test_hook(&app_state, AppType::Opencode, "broken")
+        .expect_err("switch should reject malformed full config");
+    match err {
+        AppError::Localized { key, .. } => {
+            assert_eq!(key, "provider.opencode.fragment.missing");
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+
+    let stored: serde_json::Value =
+        read_json_file(&opencode_path).expect("read opencode config after failed switch");
+    assert_eq!(
+        stored
+            .get("provider")
+            .and_then(|providers| providers.get("legacy"))
+            .and_then(|provider| provider.get("options"))
+            .and_then(|options| options.get("baseURL"))
+            .and_then(|value| value.as_str()),
+        Some("https://legacy.example.com"),
+        "existing live opencode config should remain unchanged after rejection"
+    );
+
+    let locked = app_state.config.read().expect("lock config after failure");
+    let manager = locked
+        .get_manager(&AppType::Opencode)
+        .expect("opencode manager after failure");
+    assert_eq!(
+        manager.current, "legacy",
+        "failed switch should keep the previous current provider"
+    );
+}
