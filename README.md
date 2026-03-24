@@ -13,16 +13,29 @@
 
 **Cross-platform web-based All-in-One assistant for Claude Code, Codex, Gemini CLI, OpenCode & OMO**
 
-English | [中文](README_ZH.md) | [Changelog](CHANGELOG.md)
+English | [中文](README_ZH.md) | [Legal Notice](LEGAL_NOTICE.md) | [Changelog](CHANGELOG.md)
 
 > Recommended stable release: [v0.10.1](https://github.com/Laliet/cc-switch-web/releases/tag/v0.10.1)  
 > `v0.10.1` is the current stable release
 
+> [!WARNING]
+> **Disclaimer / Legal Notice**
+> This project is provided for learning, research, and community communication only. Please carefully evaluate whether your intended use complies with applicable laws, regulations, platform rules, and third-party service terms before use.
+>
+> By using this project, you agree to assess and bear the risks arising from your own configuration, deployment, and use. To the maximum extent permitted by applicable law, the project is provided on an **"AS IS"** basis, without any express or implied warranty. The authors and contributors are not responsible for indirect, incidental, consequential, or user-caused losses, disputes, compliance issues, or third-party claims arising from misuse, unlawful use, or violation of third-party terms.
+>
+> **This notice does not mean all legal risks can be fully excluded or waived.** Liabilities that cannot be excluded or limited under applicable law shall still be governed by the applicable law. If you plan to use this project in commercial, public, regulated, or potentially sensitive scenarios, please consult qualified legal counsel first.
+
+## Legal & Compliance Summary
+
+- **Allowed scope**: learning, research, self-hosting experimentation, and community communication.
+- **Prohibited uses**: unlawful activity, infringement, unauthorized data collection, bypassing platform/service restrictions, evading rate limits or access controls, abusing other people's accounts / API keys / credentials, or violating third-party terms.
+- **Third-party terms prevail**: when using services or tools from **OpenAI, Anthropic, Google Gemini, OpenCode, OMO**, cloud vendors, hosting providers, or any other third party, you must independently review and comply with their applicable terms, policies, and usage rules. If this project's documentation conflicts with those rules, **applicable law and the third party's binding terms prevail**.
+- **Further notice**: see [LEGAL_NOTICE.md](LEGAL_NOTICE.md). The open-source license text is in [LICENSE](LICENSE); the legal notice supplements project documentation and does not replace the license grant itself.
+
 ## About / 项目简介
 
 **cc-switch-web** is a cross-platform web-based **CC Switch** for **Claude Code**, **Codex**, **Gemini CLI**, **OpenCode**, and **oh-my-opencode (OMO)**. It lets you switch providers, manage MCP servers, install skills, edit system prompts, and run the same workflow on desktop or headless cloud environments.
-
-This project is a free and open-source project shared for informational and community use only. Any legal issues arising from the use of this project are not related to the project developer.
 
 Whether you're working locally or in a headless cloud environment, cc-switch-web offers a seamless experience for:
 
