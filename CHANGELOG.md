@@ -5,6 +5,25 @@ All notable changes to CC Switch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2-rc.1] - 2026-05-06
+
+### Fixes / 修复
+
+- Restore MCP and Skills management entry points when the active Web UI app is OMO
+- Map OMO Skills management to OpenCode Skills storage, matching the shared OpenCode / OMO configuration model
+- Fix the default Anthropic Skills repository scan path to use the `skills` subdirectory and avoid nested `skills/skills/*` installs
+- Add migration logic for existing default Anthropic Skills repository entries with an empty scan path
+
+### Notes / 说明
+
+- OMO provider management remains separate
+- OMO MCP and Skills management currently operate through OpenCode's shared configuration and storage model
+- This prerelease validates the OpenCode / OMO Web UI environment before the stable `0.10.2` release
+
+### Tests / 测试
+
+- Add targeted OMO-to-OpenCode Skills API mapping coverage
+
 ## [0.10.1] - 2026-03-15
 
 ### Fixes / 修复

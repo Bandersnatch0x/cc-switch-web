@@ -42,11 +42,15 @@ export interface SkillsResponse {
 const toBoolean = (value: unknown): boolean =>
   typeof value === "boolean" ? value : false;
 
+const resolveSkillsApp = (app?: AppId): AppId | undefined =>
+  app === "omo" ? "opencode" : app;
+
 export const skillsApi = {
   async getAll(app?: AppId): Promise<SkillsResponse> {
+    const targetApp = resolveSkillsApp(app);
     const result =
-      app !== undefined
-        ? await invoke("get_skills", { app })
+      targetApp !== undefined
+        ? await invoke("get_skills", { app: targetApp })
         : await invoke("get_skills");
 
     if (Array.isArray(result)) {
@@ -78,18 +82,23 @@ export const skillsApi = {
     force?: boolean,
     app?: AppId,
   ): Promise<boolean> {
+    const targetApp = resolveSkillsApp(app);
     const payload: Record<string, unknown> = { directory };
     if (typeof force === "boolean") {
       payload.force = force;
     }
-    if (app) {
-      payload.app = app;
+    if (targetApp) {
+      payload.app = targetApp;
     }
     return await invoke("install_skill", payload);
   },
 
   async uninstall(directory: string, app?: AppId): Promise<boolean> {
-    return await invoke("uninstall_skill", app ? { directory, app } : { directory });
+    const targetApp = resolveSkillsApp(app);
+    return await invoke(
+      "uninstall_skill",
+      targetApp ? { directory, app: targetApp } : { directory },
+    );
   },
 
   async getRepos(): Promise<SkillRepo[]> {

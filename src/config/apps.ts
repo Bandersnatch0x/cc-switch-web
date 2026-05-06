@@ -25,6 +25,7 @@ export const MCP_APPS = [
   "codex",
   "gemini",
   "opencode",
+  "omo",
 ] as const satisfies readonly AppId[];
 
 export const SKILLS_APPS = [
@@ -32,6 +33,7 @@ export const SKILLS_APPS = [
   "codex",
   "gemini",
   "opencode",
+  "omo",
 ] as const satisfies readonly AppId[];
 
 export const DIRECTORY_APPS = [

@@ -174,7 +174,7 @@ impl Default for SkillStore {
                     name: "skills".to_string(),
                     branch: "main".to_string(),
                     enabled: true,
-                    skills_path: None, // 扫描根目录
+                    skills_path: Some("skills".to_string()), // 扫描 skills 子目录，避免安装到 skills/skills/*
                 },
                 SkillRepo {
                     owner: "cexll".to_string(),
@@ -1842,6 +1842,22 @@ impl SkillService {
 
         Ok(())
     }
+
+    pub fn normalize_default_repos(store: &mut SkillStore) -> bool {
+        let mut updated = false;
+
+        for repo in store.repos.iter_mut() {
+            if repo.owner.eq_ignore_ascii_case("anthropics")
+                && repo.name.eq_ignore_ascii_case("skills")
+                && repo.skills_path.as_deref().unwrap_or("").trim().is_empty()
+            {
+                repo.skills_path = Some("skills".to_string());
+                updated = true;
+            }
+        }
+
+        updated
+    }
 }
 
 #[cfg(test)]
@@ -1886,6 +1902,54 @@ mod tests {
         let normalized = SkillService::normalize_skills_path("/skills\\nested//")
             .expect("normalize should succeed");
         assert_eq!(normalized, Some("skills/nested".to_string()));
+    }
+
+    #[test]
+    fn test_default_anthropics_skills_repo_scans_skills_subdir() {
+        let store = SkillStore::default();
+        let repo = store
+            .repos
+            .iter()
+            .find(|repo| repo.owner == "anthropics" && repo.name == "skills")
+            .expect("default anthropics skills repo should exist");
+
+        assert_eq!(repo.skills_path.as_deref(), Some("skills"));
+    }
+
+    #[test]
+    fn test_normalize_default_repos_migrates_anthropics_skills_path() {
+        let mut store = SkillStore {
+            skills: HashMap::new(),
+            repos: vec![SkillRepo {
+                owner: "anthropics".to_string(),
+                name: "skills".to_string(),
+                branch: "main".to_string(),
+                enabled: true,
+                skills_path: None,
+            }],
+            repo_cache: HashMap::new(),
+        };
+
+        assert!(SkillService::normalize_default_repos(&mut store));
+        assert_eq!(store.repos[0].skills_path.as_deref(), Some("skills"));
+    }
+
+    #[test]
+    fn test_normalize_default_repos_migrates_anthropics_skills_path_case_insensitive() {
+        let mut store = SkillStore {
+            skills: HashMap::new(),
+            repos: vec![SkillRepo {
+                owner: "Anthropics".to_string(),
+                name: "Skills".to_string(),
+                branch: "main".to_string(),
+                enabled: true,
+                skills_path: None,
+            }],
+            repo_cache: HashMap::new(),
+        };
+
+        assert!(SkillService::normalize_default_repos(&mut store));
+        assert_eq!(store.repos[0].skills_path.as_deref(), Some("skills"));
     }
 
     #[test]

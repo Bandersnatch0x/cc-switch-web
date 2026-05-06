@@ -107,6 +107,16 @@ describe("skills API module", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_skills", { app: "codex" });
   });
 
+  it("getAll maps OMO to OpenCode skills", async () => {
+    invokeMock.mockResolvedValueOnce({ skills: [skill] });
+
+    await skillsApi.getAll("omo");
+
+    expect(invokeMock).toHaveBeenCalledWith("get_skills", {
+      app: "opencode",
+    });
+  });
+
   it("install forwards directory, force and app", async () => {
     invokeMock.mockResolvedValueOnce(true);
 
@@ -119,6 +129,17 @@ describe("skills API module", () => {
     });
   });
 
+  it("install maps OMO to OpenCode skills", async () => {
+    invokeMock.mockResolvedValueOnce(true);
+
+    await skillsApi.install("skills/sample", undefined, "omo");
+
+    expect(invokeMock).toHaveBeenCalledWith("install_skill", {
+      directory: "skills/sample",
+      app: "opencode",
+    });
+  });
+
   it("uninstall forwards directory and app", async () => {
     invokeMock.mockResolvedValueOnce(true);
 
@@ -127,6 +148,17 @@ describe("skills API module", () => {
     expect(invokeMock).toHaveBeenCalledWith("uninstall_skill", {
       directory: "skills/sample",
       app: "claude",
+    });
+  });
+
+  it("uninstall maps OMO to OpenCode skills", async () => {
+    invokeMock.mockResolvedValueOnce(true);
+
+    await skillsApi.uninstall("skills/sample", "omo");
+
+    expect(invokeMock).toHaveBeenCalledWith("uninstall_skill", {
+      directory: "skills/sample",
+      app: "opencode",
     });
   });
 });

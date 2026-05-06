@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use crate::services::skill::SkillStore;
+use crate::services::skill::{SkillService, SkillStore};
 
 /// MCP 服务器应用状态（标记应用到哪些客户端）
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
@@ -429,6 +429,11 @@ impl MultiAppConfig {
                     }
                 }
             }
+        }
+
+        if SkillService::normalize_default_repos(&mut self.skills) {
+            log::info!("已修正默认 Anthropic Skills 仓库扫描路径为 skills 子目录");
+            updated = true;
         }
 
         for app_id in ["gemini", "opencode", "omo"] {
