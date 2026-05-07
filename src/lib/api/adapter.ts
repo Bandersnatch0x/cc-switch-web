@@ -938,6 +938,53 @@ export function commandToEndpoint(
         url: `${apiBase}/settings`,
         body: requireArg(args, "settings", cmd),
       };
+    case "proxy_status":
+      return { method: "GET", url: `${apiBase}/proxy/status` };
+    case "proxy_config":
+      return { method: "GET", url: `${apiBase}/proxy/config` };
+    case "save_proxy_config":
+      return {
+        method: "PUT",
+        url: `${apiBase}/proxy/config`,
+        body: { settings: requireArg(args, "settings", cmd) },
+      };
+    case "save_proxy_settings":
+      return {
+        method: "PUT",
+        url: `${apiBase}/proxy/settings`,
+        body: { settings: requireArg(args, "settings", cmd) },
+      };
+    case "start_proxy":
+      return {
+        method: "POST",
+        url: `${apiBase}/proxy/start`,
+        body: { settings: requireArg(args, "settings", cmd) },
+      };
+    case "stop_proxy":
+      return { method: "POST", url: `${apiBase}/proxy/stop` };
+    case "test_proxy":
+      return {
+        method: "POST",
+        url: `${apiBase}/proxy/test`,
+        body: { settings: requireArg(args, "settings", cmd) },
+      };
+    case "set_proxy_takeover":
+      return {
+        method: "PUT",
+        url: `${apiBase}/proxy/takeover/${encodeURIComponent(
+          String(requireArg(args, "app", cmd)),
+        )}`,
+        body: { enabled: requireArg(args, "enabled", cmd) },
+      };
+    case "restore_proxy":
+      return { method: "POST", url: `${apiBase}/proxy/restore` };
+    case "recover_stale_proxy_takeover":
+      return {
+        method: "POST",
+        url: `${apiBase}/proxy/recover-stale-takeover`,
+      };
+    case "proxy_recent_logs":
+      return { method: "GET", url: `${apiBase}/proxy/logs/recent` };
     case "update_web_credentials":
       return {
         method: "PUT",

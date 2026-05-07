@@ -13,12 +13,16 @@ mod gemini_config; // 新增
 mod gemini_mcp;
 #[cfg(feature = "desktop")]
 mod init_status;
+#[cfg(feature = "web-server")]
+pub mod local_proxy;
 mod mcp;
 mod omo_config;
 mod opencode_config;
 mod prompt;
 mod prompt_files;
 mod provider;
+#[cfg(feature = "web-server")]
+pub mod proxy;
 mod services;
 mod settings;
 pub mod store;

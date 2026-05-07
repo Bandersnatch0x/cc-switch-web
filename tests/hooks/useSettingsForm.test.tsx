@@ -58,6 +58,161 @@ describe("useSettingsForm Hook", () => {
     expect(changeLanguageSpy).toHaveBeenCalledWith("en");
   });
 
+  it("should fill default proxy settings when proxy is missing", async () => {
+    useSettingsQueryMock.mockReturnValue({
+      data: {
+        showInTray: true,
+        minimizeToTrayOnClose: true,
+        enableClaudePluginIntegration: false,
+        language: "zh",
+      },
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useSettingsForm());
+
+    await waitFor(() => {
+      expect(result.current.settings?.proxy).toBeDefined();
+    });
+
+    expect(result.current.settings?.proxy).toEqual({
+      enabled: false,
+      host: "127.0.0.1",
+      port: 3456,
+      upstreamProxy: undefined,
+      bindApp: "claude",
+      autoStart: false,
+      enableLogging: false,
+      liveTakeoverActive: false,
+      streamingFirstByteTimeout: 30,
+      streamingIdleTimeout: 120,
+      nonStreamingTimeout: 180,
+      apps: {
+        claude: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+        codex: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+        gemini: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+        opencode: {
+          enabled: false,
+          autoFailoverEnabled: false,
+          maxRetries: 0,
+        },
+      },
+    });
+  });
+
+  it("should normalize partial proxy apps and sanitize upstream proxy", async () => {
+    useSettingsQueryMock.mockReturnValue({
+      data: {
+        showInTray: true,
+        minimizeToTrayOnClose: true,
+        enableClaudePluginIntegration: false,
+        language: "zh",
+        proxy: {
+          enabled: true,
+          host: "0.0.0.0",
+          port: 4567,
+          upstreamProxy: "  http://proxy.local:8080  ",
+          bindApp: "codex",
+          autoStart: true,
+          enableLogging: true,
+          liveTakeoverActive: true,
+          streamingFirstByteTimeout: 10,
+          streamingIdleTimeout: 20,
+          nonStreamingTimeout: 30,
+          apps: {
+            claude: { enabled: true },
+          },
+        },
+      },
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useSettingsForm());
+
+    await waitFor(() => {
+      expect(result.current.settings?.proxy?.apps.codex).toBeDefined();
+    });
+
+    expect(result.current.settings?.proxy?.upstreamProxy).toBe(
+      "http://proxy.local:8080",
+    );
+    expect(result.current.settings?.proxy?.apps.claude).toEqual({
+      enabled: true,
+      autoFailoverEnabled: false,
+      maxRetries: 0,
+    });
+    expect(result.current.settings?.proxy?.apps.codex).toEqual({
+      enabled: false,
+      autoFailoverEnabled: false,
+      maxRetries: 0,
+    });
+    expect(result.current.settings?.proxy?.apps.gemini).toEqual({
+      enabled: false,
+      autoFailoverEnabled: false,
+      maxRetries: 0,
+    });
+    expect(result.current.settings?.proxy?.apps.opencode).toEqual({
+      enabled: false,
+      autoFailoverEnabled: false,
+      maxRetries: 0,
+    });
+  });
+
+  it("should remove blank proxy upstream proxy", async () => {
+    useSettingsQueryMock.mockReturnValue({
+      data: {
+        showInTray: true,
+        minimizeToTrayOnClose: true,
+        enableClaudePluginIntegration: false,
+        language: "zh",
+        proxy: {
+          enabled: false,
+          host: "127.0.0.1",
+          port: 3456,
+          upstreamProxy: "   ",
+          bindApp: "claude",
+          autoStart: false,
+          enableLogging: false,
+          liveTakeoverActive: false,
+          streamingFirstByteTimeout: 30,
+          streamingIdleTimeout: 120,
+          nonStreamingTimeout: 180,
+          apps: {
+            claude: {
+              enabled: false,
+              autoFailoverEnabled: false,
+              maxRetries: 0,
+            },
+            codex: {
+              enabled: false,
+              autoFailoverEnabled: false,
+              maxRetries: 0,
+            },
+            gemini: {
+              enabled: false,
+              autoFailoverEnabled: false,
+              maxRetries: 0,
+            },
+            opencode: {
+              enabled: false,
+              autoFailoverEnabled: false,
+              maxRetries: 0,
+            },
+          },
+        },
+      },
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useSettingsForm());
+
+    await waitFor(() => {
+      expect(result.current.settings?.proxy).toBeDefined();
+    });
+
+    expect(result.current.settings?.proxy?.upstreamProxy).toBeUndefined();
+  });
+
   it("should prioritize reading language from local storage in readPersistedLanguage", () => {
     useSettingsQueryMock.mockReturnValue({
       data: null,

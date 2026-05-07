@@ -1,4 +1,12 @@
-import type { Settings } from "@/types";
+import type {
+  ProxyAppId,
+  ProxyRecentLog,
+  ProxySettings,
+  ProxyStatus,
+  ProxyTakeoverResult,
+  ProxyTestResult,
+  Settings,
+} from "@/types";
 import { invoke } from "./adapter";
 import type { AppId } from "./types";
 
@@ -149,5 +157,52 @@ export const settingsApi = {
       throw new Error("Unsupported URL scheme");
     }
     await invoke("open_external", { url });
+  },
+
+  async getProxyStatus(): Promise<ProxyStatus> {
+    return await invoke("proxy_status");
+  },
+
+  async getProxyConfig(): Promise<ProxySettings> {
+    return await invoke("proxy_config");
+  },
+
+  async saveProxyConfig(settings: ProxySettings): Promise<ProxySettings> {
+    return await invoke("save_proxy_config", { settings });
+  },
+
+  async saveProxySettings(settings: ProxySettings): Promise<boolean> {
+    return await invoke("save_proxy_settings", { settings });
+  },
+
+  async startProxy(settings: ProxySettings): Promise<ProxyStatus> {
+    return await invoke("start_proxy", { settings });
+  },
+
+  async stopProxy(): Promise<ProxyStatus> {
+    return await invoke("stop_proxy");
+  },
+
+  async testProxy(settings: ProxySettings): Promise<ProxyTestResult> {
+    return await invoke("test_proxy", { settings });
+  },
+
+  async setProxyTakeover(
+    app: ProxyAppId,
+    enabled: boolean,
+  ): Promise<ProxyTakeoverResult> {
+    return await invoke("set_proxy_takeover", { app, enabled });
+  },
+
+  async restoreProxy(): Promise<ProxyStatus> {
+    return await invoke("restore_proxy");
+  },
+
+  async recoverStaleProxyTakeover(): Promise<ProxyStatus> {
+    return await invoke("recover_stale_proxy_takeover");
+  },
+
+  async getProxyRecentLogs(): Promise<ProxyRecentLog[]> {
+    return await invoke("proxy_recent_logs");
   },
 };

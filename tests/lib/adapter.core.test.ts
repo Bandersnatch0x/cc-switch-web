@@ -269,7 +269,8 @@ describe("adapter helpers", () => {
   });
 
   it("getStoredWebUsername infers stored remote api base when no target is provided", async () => {
-    const { WEB_AUTH_STORAGE_KEY, getStoredWebUsername } = await importAdapter();
+    const { WEB_AUTH_STORAGE_KEY, getStoredWebUsername } =
+      await importAdapter();
 
     vi.stubGlobal("location", {
       origin: "https://api.example.com",
@@ -671,6 +672,93 @@ describe("commandToEndpoint", () => {
           url: "/api/settings",
           body: { theme: "dark" },
         },
+      },
+      {
+        cmd: "proxy_status",
+        args: {},
+        expected: { method: "GET", url: "/api/proxy/status" },
+      },
+      {
+        cmd: "proxy_config",
+        args: {},
+        expected: { method: "GET", url: "/api/proxy/config" },
+      },
+      {
+        cmd: "save_proxy_config",
+        args: { settings: { host: "127.0.0.1", port: 3456 } },
+        expected: {
+          method: "PUT",
+          url: "/api/proxy/config",
+          body: { settings: { host: "127.0.0.1", port: 3456 } },
+        },
+      },
+      {
+        cmd: "save_proxy_settings",
+        args: { settings: { host: "127.0.0.1", port: 3456 } },
+        expected: {
+          method: "PUT",
+          url: "/api/proxy/settings",
+          body: { settings: { host: "127.0.0.1", port: 3456 } },
+        },
+      },
+      {
+        cmd: "start_proxy",
+        args: { settings: { host: "127.0.0.1", port: 3456 } },
+        expected: {
+          method: "POST",
+          url: "/api/proxy/start",
+          body: { settings: { host: "127.0.0.1", port: 3456 } },
+        },
+      },
+      {
+        cmd: "stop_proxy",
+        args: {},
+        expected: { method: "POST", url: "/api/proxy/stop" },
+      },
+      {
+        cmd: "test_proxy",
+        args: { settings: { host: "127.0.0.1", port: 3456 } },
+        expected: {
+          method: "POST",
+          url: "/api/proxy/test",
+          body: { settings: { host: "127.0.0.1", port: 3456 } },
+        },
+      },
+      {
+        cmd: "set_proxy_takeover",
+        args: { app: "gemini", enabled: true },
+        expected: {
+          method: "PUT",
+          url: "/api/proxy/takeover/gemini",
+          body: { enabled: true },
+        },
+      },
+      {
+        cmd: "set_proxy_takeover",
+        args: { app: "open code", enabled: false },
+        expected: {
+          method: "PUT",
+          url: "/api/proxy/takeover/open%20code",
+          body: { enabled: false },
+        },
+      },
+      {
+        cmd: "restore_proxy",
+        args: {},
+        expected: { method: "POST", url: "/api/proxy/restore" },
+      },
+      {
+        cmd: "recover_stale_proxy_takeover",
+        args: {},
+        expected: {
+          method: "POST",
+          url: "/api/proxy/recover-stale-takeover",
+        },
+      },
+      {
+        cmd: "proxy_recent_logs",
+        args: {},
+        expected: { method: "GET", url: "/api/proxy/logs/recent" },
       },
       {
         cmd: "restart_app",

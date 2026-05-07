@@ -1,5 +1,15 @@
 import type { AppId } from "@/lib/api/types";
-import type { McpServer, Provider, Settings } from "@/types";
+import type {
+  McpServer,
+  Provider,
+  ProxyAppId,
+  ProxyRecentLog,
+  ProxySettings,
+  ProxyStatus,
+  ProxyTestResult,
+  ProxyTakeoverResult,
+  Settings,
+} from "@/types";
 import type { Skill, SkillRepo, SkillsResponse } from "@/lib/api/skills";
 
 type ProvidersByApp = Record<AppId, Record<string, Provider>>;
@@ -150,11 +160,65 @@ const createDefaultSkillRepos = (): SkillReposState => [
   },
 ];
 
+const createDefaultProxyAppSettings = () => ({
+  enabled: false,
+  autoFailoverEnabled: false,
+  maxRetries: 0,
+});
+
+const createDefaultProxySettings = (): ProxySettings => ({
+  enabled: false,
+  host: "127.0.0.1",
+  port: 3456,
+  upstreamProxy: undefined,
+  bindApp: "claude",
+  autoStart: false,
+  enableLogging: false,
+  liveTakeoverActive: false,
+  streamingFirstByteTimeout: 30,
+  streamingIdleTimeout: 120,
+  nonStreamingTimeout: 180,
+  apps: {
+    claude: createDefaultProxyAppSettings(),
+    codex: createDefaultProxyAppSettings(),
+    gemini: createDefaultProxyAppSettings(),
+    opencode: createDefaultProxyAppSettings(),
+  },
+});
+
+const createDefaultProxyStatus = (): ProxyStatus => ({
+  running: false,
+  address: "127.0.0.1",
+  port: 3456,
+  listenUrl: "http://127.0.0.1:3456",
+  activeConnections: 0,
+  totalRequests: 0,
+  successRequests: 0,
+  failedRequests: 0,
+  successRate: 0,
+  uptimeSeconds: 0,
+  activeTargets: [],
+  takeover: {
+    claude: false,
+    codex: false,
+    gemini: false,
+    opencode: false,
+    omo: false,
+  },
+  bindApp: "claude",
+  failoverCount: 0,
+  lastFailoverAt: undefined,
+  lastFailoverFrom: undefined,
+  lastFailoverTo: undefined,
+});
+
 let providers = createDefaultProviders();
 let current = createDefaultCurrent();
 let backup = createDefaultBackup();
 let skills = createDefaultSkills();
 let skillRepos = createDefaultSkillRepos();
+let proxyStatusState = createDefaultProxyStatus();
+let proxyRecentLogsState: ProxyRecentLog[] = [];
 let settingsState: Settings = {
   showInTray: true,
   minimizeToTrayOnClose: true,
@@ -164,6 +228,7 @@ let settingsState: Settings = {
   geminiConfigDir: "/default/gemini",
   opencodeConfigDir: "/default/opencode",
   language: "zh",
+  proxy: createDefaultProxySettings(),
 };
 let appConfigDirOverride: string | null = null;
 let mcpConfigs: McpConfigState = {
@@ -235,6 +300,8 @@ export const resetProviderState = () => {
   backup = createDefaultBackup();
   skills = createDefaultSkills();
   skillRepos = createDefaultSkillRepos();
+  proxyStatusState = createDefaultProxyStatus();
+  proxyRecentLogsState = [];
   settingsState = {
     showInTray: true,
     minimizeToTrayOnClose: true,
@@ -244,6 +311,7 @@ export const resetProviderState = () => {
     geminiConfigDir: "/default/gemini",
     opencodeConfigDir: "/default/opencode",
     language: "zh",
+    proxy: createDefaultProxySettings(),
   };
   appConfigDirOverride = null;
   mcpConfigs = {
@@ -295,7 +363,10 @@ export const getCurrentProviderId = (appType: AppId) => current[appType] ?? "";
 
 export const getBackupProviderId = (appType: AppId) => backup[appType] ?? null;
 
-export const setBackupProviderId = (appType: AppId, providerId: string | null) => {
+export const setBackupProviderId = (
+  appType: AppId,
+  providerId: string | null,
+) => {
   backup[appType] = providerId;
 };
 
@@ -303,12 +374,23 @@ export const setCurrentProviderId = (appType: AppId, providerId: string) => {
   current[appType] = providerId;
 };
 
-export const updateProviders = (appType: AppId, data: Record<string, Provider>) => {
-  providers[appType] = cloneProviders({ [appType]: data } as ProvidersByApp)[appType];
+export const updateProviders = (
+  appType: AppId,
+  data: Record<string, Provider>,
+) => {
+  providers[appType] = cloneProviders({ [appType]: data } as ProvidersByApp)[
+    appType
+  ];
 };
 
-export const setProviders = (appType: AppId, data: Record<string, Provider>) => {
-  providers[appType] = JSON.parse(JSON.stringify(data)) as Record<string, Provider>;
+export const setProviders = (
+  appType: AppId,
+  data: Record<string, Provider>,
+) => {
+  providers[appType] = JSON.parse(JSON.stringify(data)) as Record<
+    string,
+    Provider
+  >;
 };
 
 export const addProvider = (appType: AppId, provider: Provider) => {
@@ -347,7 +429,10 @@ export const updateSortOrder = (
 };
 
 export const listProviders = (appType: AppId) =>
-  JSON.parse(JSON.stringify(providers[appType] ?? {})) as Record<string, Provider>;
+  JSON.parse(JSON.stringify(providers[appType] ?? {})) as Record<
+    string,
+    Provider
+  >;
 
 export const getSkillsState = (): SkillsResponse => ({
   skills: cloneSkills(skills),
@@ -394,14 +479,158 @@ export const addSkillRepoState = (repo: SkillRepo) => {
 };
 
 export const removeSkillRepoState = (owner: string, name: string) => {
-  skillRepos = skillRepos.filter((repo) => !(repo.owner === owner && repo.name === name));
+  skillRepos = skillRepos.filter(
+    (repo) => !(repo.owner === owner && repo.name === name),
+  );
 };
 
-export const getSettings = () => JSON.parse(JSON.stringify(settingsState)) as Settings;
+export const getSettings = () =>
+  JSON.parse(JSON.stringify(settingsState)) as Settings;
 
 export const setSettings = (data: Partial<Settings>) => {
   settingsState = { ...settingsState, ...data };
 };
+
+const cloneProxySettings = (value: ProxySettings) =>
+  JSON.parse(JSON.stringify(value)) as ProxySettings;
+
+const cloneProxyStatus = (value: ProxyStatus) =>
+  JSON.parse(JSON.stringify(value)) as ProxyStatus;
+
+const cloneProxyRecentLogs = (value: ProxyRecentLog[]) =>
+  JSON.parse(JSON.stringify(value)) as ProxyRecentLog[];
+
+const getCurrentProxySettings = () =>
+  cloneProxySettings(settingsState.proxy ?? createDefaultProxySettings());
+
+const proxyTakeoverFromSettings = (settings: ProxySettings) => ({
+  claude: settings.apps.claude.enabled,
+  codex: settings.apps.codex.enabled,
+  gemini: settings.apps.gemini.enabled,
+  opencode: settings.apps.opencode.enabled,
+  omo: false,
+});
+
+const updateProxyStatusFromSettings = (
+  settings: ProxySettings,
+  running = proxyStatusState.running,
+) => {
+  proxyStatusState = {
+    ...proxyStatusState,
+    running,
+    address: settings.host,
+    port: settings.port,
+    listenUrl: `http://${settings.host}:${settings.port}`,
+    takeover: proxyTakeoverFromSettings(settings),
+    bindApp: settings.bindApp,
+    activeTargets: (Object.keys(settings.apps) as ProxyAppId[])
+      .filter((app) => settings.apps[app].enabled)
+      .map((app) => ({
+        appType: app,
+        providerId: current[app],
+        providerName: providers[app]?.[current[app]]?.name ?? current[app],
+      })),
+  };
+};
+
+export const getProxyConfigState = () => getCurrentProxySettings();
+
+export const setProxyConfigState = (settings: ProxySettings) => {
+  settingsState = {
+    ...settingsState,
+    proxy: cloneProxySettings(settings),
+  };
+  if (!settings.enableLogging) {
+    clearProxyRecentLogsState();
+  }
+  updateProxyStatusFromSettings(settings);
+  return getProxyConfigState();
+};
+
+export const getProxyStatusState = () => cloneProxyStatus(proxyStatusState);
+
+export const getProxyRecentLogsState = () =>
+  getCurrentProxySettings().enableLogging
+    ? cloneProxyRecentLogs(proxyRecentLogsState)
+    : [];
+
+export const addProxyRecentLogState = (log: ProxyRecentLog) => {
+  const settings = getCurrentProxySettings();
+  if (!settings.enableLogging) return;
+  proxyRecentLogsState = [...proxyRecentLogsState, log].slice(-100);
+};
+
+export const clearProxyRecentLogsState = () => {
+  proxyRecentLogsState = [];
+};
+
+export const startProxyState = (settings: ProxySettings) => {
+  proxyRecentLogsState = [];
+  const saved = setProxyConfigState({
+    ...settings,
+    enabled: true,
+    liveTakeoverActive: Object.values(settings.apps).some((app) => app.enabled),
+  });
+  updateProxyStatusFromSettings(saved, true);
+  return getProxyStatusState();
+};
+
+export const stopProxyState = () => {
+  const settings = getCurrentProxySettings();
+  const nextSettings: ProxySettings = {
+    ...settings,
+    enabled: false,
+    liveTakeoverActive: false,
+    apps: {
+      claude: { ...settings.apps.claude, enabled: false },
+      codex: { ...settings.apps.codex, enabled: false },
+      gemini: { ...settings.apps.gemini, enabled: false },
+      opencode: { ...settings.apps.opencode, enabled: false },
+    },
+  };
+  setProxyConfigState(nextSettings);
+  updateProxyStatusFromSettings(nextSettings, false);
+  clearProxyRecentLogsState();
+  return getProxyStatusState();
+};
+
+export const testProxyState = (settings: ProxySettings): ProxyTestResult => ({
+  success: settings.host.trim().length > 0 && settings.port > 0,
+  message: "ok",
+  baseUrl: `http://${settings.host}:${settings.port}`,
+});
+
+export const setProxyTakeoverState = (
+  app: ProxyAppId,
+  enabled: boolean,
+): ProxyTakeoverResult => {
+  const settings = getCurrentProxySettings();
+  const nextSettings: ProxySettings = {
+    ...settings,
+    liveTakeoverActive:
+      enabled ||
+      (Object.keys(settings.apps) as ProxyAppId[]).some(
+        (item) => item !== app && settings.apps[item].enabled,
+      ),
+    apps: {
+      ...settings.apps,
+      [app]: {
+        ...settings.apps[app],
+        enabled,
+      },
+    },
+  };
+  setProxyConfigState(nextSettings);
+  return {
+    app,
+    enabled,
+    status: getProxyStatusState(),
+  };
+};
+
+export const restoreProxyState = () => stopProxyState();
+
+export const recoverStaleProxyTakeoverState = () => restoreProxyState();
 
 export const getAppConfigDirOverride = () => appConfigDirOverride;
 
@@ -419,8 +648,14 @@ export const getMcpConfig = (appType: AppId) => {
   };
 };
 
-export const setMcpConfig = (appType: AppId, value: Record<string, McpServer>) => {
-  mcpConfigs[appType] = JSON.parse(JSON.stringify(value)) as Record<string, McpServer>;
+export const setMcpConfig = (
+  appType: AppId,
+  value: Record<string, McpServer>,
+) => {
+  mcpConfigs[appType] = JSON.parse(JSON.stringify(value)) as Record<
+    string,
+    McpServer
+  >;
 };
 
 export const setMcpServerEnabled = (
@@ -462,11 +697,7 @@ export const deleteUnifiedMcpServer = (id: string) => {
   delete mcpServers[id];
 };
 
-export const toggleMcpAppState = (
-  id: string,
-  app: AppId,
-  enabled: boolean,
-) => {
+export const toggleMcpAppState = (id: string, app: AppId, enabled: boolean) => {
   if (!mcpServers[id]) return;
   if (app === "omo") return;
   mcpServers[id] = {

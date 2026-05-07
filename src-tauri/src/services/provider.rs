@@ -359,6 +359,11 @@ impl ProviderService {
         name_lower == "google" || name_lower.starts_with("google ")
     }
 
+    #[cfg(feature = "web-server")]
+    pub(crate) fn is_google_official_gemini_provider(provider: &Provider) -> bool {
+        Self::is_google_official_gemini(provider)
+    }
+
     /// 确保 PackyCode Gemini 供应商的安全标志正确设置
     ///
     /// PackyCode 是官方合作伙伴，使用 API Key 认证模式。
@@ -593,16 +598,39 @@ impl ProviderService {
     }
 
     fn apply_post_commit(state: &AppState, action: &PostCommitAction) -> Result<(), AppError> {
-        Self::write_live_snapshot(&action.app_type, &action.provider)?;
+        let proxy_takeover_active = Self::proxy_takeover_enabled(&action.app_type);
+        if !proxy_takeover_active {
+            Self::write_live_snapshot(&action.app_type, &action.provider)?;
+        }
         if action.sync_mcp {
             // 使用 v3.7.0 统一的 MCP 同步机制，支持所有应用
             use crate::services::mcp::McpService;
             McpService::sync_all_enabled(state)?;
         }
-        if action.refresh_snapshot {
+        if action.refresh_snapshot && !proxy_takeover_active {
             Self::refresh_provider_snapshot(state, &action.app_type, &action.provider.id)?;
         }
         Ok(())
+    }
+
+    fn proxy_takeover_enabled(app_type: &AppType) -> bool {
+        #[cfg(feature = "web-server")]
+        {
+            let proxy = settings::get_settings().proxy;
+            return match app_type {
+                AppType::Claude => proxy.apps.claude.enabled,
+                AppType::Codex => proxy.apps.codex.enabled,
+                AppType::Gemini => proxy.apps.gemini.enabled,
+                AppType::Opencode => proxy.apps.opencode.enabled,
+                AppType::Omo => false,
+            };
+        }
+
+        #[cfg(not(feature = "web-server"))]
+        {
+            let _ = app_type;
+            false
+        }
     }
 
     fn refresh_provider_snapshot(
@@ -2218,7 +2246,7 @@ impl ProviderService {
     }
 
     #[allow(dead_code)]
-    fn extract_credentials(
+    pub(crate) fn extract_credentials(
         provider: &Provider,
         app_type: &AppType,
     ) -> Result<(String, String), AppError> {

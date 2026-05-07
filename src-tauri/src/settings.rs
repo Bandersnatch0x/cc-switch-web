@@ -137,6 +137,116 @@ pub struct SecuritySettings {
     pub auth: Option<SecurityAuthSettings>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxySettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_proxy_host")]
+    pub host: String,
+    #[serde(default = "default_proxy_port")]
+    pub port: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_proxy: Option<String>,
+    #[serde(default = "default_proxy_bind_app")]
+    pub bind_app: String,
+    #[serde(default)]
+    pub auto_start: bool,
+    #[serde(default)]
+    pub enable_logging: bool,
+    #[serde(default)]
+    pub live_takeover_active: bool,
+    #[serde(default = "default_streaming_first_byte_timeout")]
+    pub streaming_first_byte_timeout: u64,
+    #[serde(default = "default_streaming_idle_timeout")]
+    pub streaming_idle_timeout: u64,
+    #[serde(default = "default_non_streaming_timeout")]
+    pub non_streaming_timeout: u64,
+    #[serde(default)]
+    pub apps: ProxyAppsSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyAppSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub auto_failover_enabled: bool,
+    #[serde(default = "default_proxy_max_retries")]
+    pub max_retries: u8,
+}
+
+impl Default for ProxyAppSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            auto_failover_enabled: false,
+            max_retries: default_proxy_max_retries(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyAppsSettings {
+    #[serde(default)]
+    pub claude: ProxyAppSettings,
+    #[serde(default)]
+    pub codex: ProxyAppSettings,
+    #[serde(default)]
+    pub gemini: ProxyAppSettings,
+    #[serde(default)]
+    pub opencode: ProxyAppSettings,
+}
+
+fn default_proxy_host() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_proxy_port() -> u16 {
+    3456
+}
+
+fn default_proxy_bind_app() -> String {
+    "claude".to_string()
+}
+
+fn default_streaming_first_byte_timeout() -> u64 {
+    30
+}
+
+fn default_streaming_idle_timeout() -> u64 {
+    120
+}
+
+fn default_non_streaming_timeout() -> u64 {
+    180
+}
+
+fn default_proxy_max_retries() -> u8 {
+    0
+}
+
+impl Default for ProxySettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            host: default_proxy_host(),
+            port: default_proxy_port(),
+            upstream_proxy: None,
+            bind_app: default_proxy_bind_app(),
+            auto_start: false,
+            enable_logging: false,
+            live_takeover_active: false,
+            streaming_first_byte_timeout: default_streaming_first_byte_timeout(),
+            streaming_idle_timeout: default_streaming_idle_timeout(),
+            non_streaming_timeout: default_non_streaming_timeout(),
+            apps: ProxyAppsSettings::default(),
+        }
+    }
+}
+
 /// 应用设置结构，允许覆盖默认配置目录
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -160,6 +270,8 @@ pub struct AppSettings {
     pub language: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub security: Option<SecuritySettings>,
+    #[serde(default)]
+    pub proxy: ProxySettings,
     /// Claude 自定义端点列表
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub custom_endpoints_claude: HashMap<String, CustomEndpoint>,
@@ -188,6 +300,7 @@ impl Default for AppSettings {
             opencode_config_dir: None,
             language: None,
             security: None,
+            proxy: ProxySettings::default(),
             custom_endpoints_claude: HashMap::new(),
             custom_endpoints_codex: HashMap::new(),
         }

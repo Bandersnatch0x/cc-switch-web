@@ -6,7 +6,7 @@ use axum::{
 };
 
 use super::{
-    handlers::{config, health, mcp, prompts, providers, settings, skills, system},
+    handlers::{config, health, mcp, prompts, providers, proxy, settings, skills, system},
     SharedState,
 };
 
@@ -18,6 +18,7 @@ pub fn create_router(state: SharedState) -> Router {
         .nest("/prompts", prompt_routes())
         .nest("/skills", skill_routes())
         .nest("/settings", settings_routes())
+        .nest("/proxy", proxy_routes())
         .nest("/config", config_routes())
         .route("/tray/update", post(system::update_tray))
         .route("/system/csrf-token", get(system::get_csrf_token))
@@ -111,6 +112,24 @@ fn settings_routes() -> Router<SharedState> {
         "/",
         get(settings::get_settings).put(settings::save_settings),
     )
+}
+
+fn proxy_routes() -> Router<SharedState> {
+    Router::new()
+        .route("/status", get(proxy::get_status))
+        .route("/config", get(proxy::get_config).put(proxy::save_config))
+        .route("/settings", put(proxy::save_settings))
+        .route("/start", post(proxy::start))
+        .route("/stop", post(proxy::stop))
+        .route("/test", post(proxy::test))
+        .route("/logs/recent", get(proxy::recent_logs))
+        .route("/takeover", get(proxy::get_takeover))
+        .route("/takeover/:app", put(proxy::set_takeover))
+        .route("/restore", post(proxy::restore))
+        .route(
+            "/recover-stale-takeover",
+            post(proxy::recover_stale_takeover),
+        )
 }
 
 fn config_routes() -> Router<SharedState> {

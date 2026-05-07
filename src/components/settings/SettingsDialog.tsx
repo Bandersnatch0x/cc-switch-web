@@ -26,6 +26,7 @@ import { WindowSettings } from "@/components/settings/WindowSettings";
 import { DirectorySettings } from "@/components/settings/DirectorySettings";
 import { ImportExportSection } from "@/components/settings/ImportExportSection";
 import { AboutSection } from "@/components/settings/AboutSection";
+import { ProxySettingsSection } from "@/components/settings/ProxySettingsSection";
 import { useSettings } from "@/hooks/useSettings";
 import { useImportExport } from "@/hooks/useImportExport";
 import { useTranslation } from "react-i18next";
@@ -341,6 +342,12 @@ export function SettingsDialog({
                       onExport={exportConfig}
                       onClear={clearSelection}
                     />
+                    {showWebCredentials && settings.proxy ? (
+                      <ProxySettingsSection
+                        value={settings.proxy}
+                        onChange={(proxy) => updateSettings({ proxy })}
+                      />
+                    ) : null}
                     {showWebCredentials ? (
                       <section className="space-y-3">
                         <div>

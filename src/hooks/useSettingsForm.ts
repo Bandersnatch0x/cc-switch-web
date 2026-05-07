@@ -20,6 +20,53 @@ const sanitizeDir = (value?: string | null): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const defaultProxySettings = () => ({
+  enabled: false,
+  host: "127.0.0.1",
+  port: 3456,
+  upstreamProxy: undefined,
+  bindApp: "claude" as const,
+  autoStart: false,
+  enableLogging: false,
+  liveTakeoverActive: false,
+  streamingFirstByteTimeout: 30,
+  streamingIdleTimeout: 120,
+  nonStreamingTimeout: 180,
+  apps: {
+    claude: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+    codex: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+    gemini: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+    opencode: { enabled: false, autoFailoverEnabled: false, maxRetries: 0 },
+  },
+});
+
+const normalizeProxySettings = (proxy?: Settings["proxy"]) => {
+  const defaults = defaultProxySettings();
+  return {
+    ...defaults,
+    ...(proxy ?? {}),
+    upstreamProxy: sanitizeDir(proxy?.upstreamProxy),
+    apps: {
+      claude: {
+        ...defaults.apps.claude,
+        ...(proxy?.apps?.claude ?? {}),
+      },
+      codex: {
+        ...defaults.apps.codex,
+        ...(proxy?.apps?.codex ?? {}),
+      },
+      gemini: {
+        ...defaults.apps.gemini,
+        ...(proxy?.apps?.gemini ?? {}),
+      },
+      opencode: {
+        ...defaults.apps.opencode,
+        ...(proxy?.apps?.opencode ?? {}),
+      },
+    },
+  };
+};
+
 export interface UseSettingsFormResult {
   settings: SettingsFormState | null;
   isLoading: boolean;
@@ -90,6 +137,7 @@ export function useSettingsForm(): UseSettingsFormResult {
       codexConfigDir: sanitizeDir(data.codexConfigDir),
       geminiConfigDir: sanitizeDir(data.geminiConfigDir),
       opencodeConfigDir: sanitizeDir(data.opencodeConfigDir),
+      proxy: normalizeProxySettings(data.proxy),
       language: normalizedLanguage,
     };
 
@@ -107,6 +155,7 @@ export function useSettingsForm(): UseSettingsFormResult {
             showInTray: true,
             minimizeToTrayOnClose: true,
             enableClaudePluginIntegration: false,
+            proxy: defaultProxySettings(),
             language: readPersistedLanguage(),
           } as SettingsFormState);
 
@@ -145,6 +194,7 @@ export function useSettingsForm(): UseSettingsFormResult {
         codexConfigDir: sanitizeDir(serverData.codexConfigDir),
         geminiConfigDir: sanitizeDir(serverData.geminiConfigDir),
         opencodeConfigDir: sanitizeDir(serverData.opencodeConfigDir),
+        proxy: normalizeProxySettings(serverData.proxy),
         language: normalizedLanguage,
       };
 

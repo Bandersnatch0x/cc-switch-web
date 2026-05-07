@@ -7,6 +7,25 @@ const directorySchema = z
   .optional()
   .or(z.literal(""));
 
+const proxyAppSchema = z.object({
+  enabled: z.boolean().default(false),
+  autoFailoverEnabled: z.boolean().default(false),
+  maxRetries: z.number().int().min(0).max(10).default(0),
+});
+
+const defaultProxyApp = () => ({
+  enabled: false,
+  autoFailoverEnabled: false,
+  maxRetries: 0,
+});
+
+const defaultProxyApps = () => ({
+  claude: defaultProxyApp(),
+  codex: defaultProxyApp(),
+  gemini: defaultProxyApp(),
+  opencode: defaultProxyApp(),
+});
+
 export const settingsSchema = z.object({
   showInTray: z.boolean(),
   minimizeToTrayOnClose: z.boolean(),
@@ -18,6 +37,29 @@ export const settingsSchema = z.object({
   language: z.enum(["en", "zh"]).optional(),
   customEndpointsClaude: z.record(z.string(), z.unknown()).optional(),
   customEndpointsCodex: z.record(z.string(), z.unknown()).optional(),
+  proxy: z
+    .object({
+      enabled: z.boolean(),
+      host: z.string().trim().min(1),
+      port: z.number().int().min(1).max(65535),
+      upstreamProxy: z.string().trim().optional().or(z.literal("")),
+      bindApp: z.enum(["claude", "codex", "gemini", "opencode"]),
+      autoStart: z.boolean(),
+      enableLogging: z.boolean().default(false),
+      liveTakeoverActive: z.boolean().default(false),
+      streamingFirstByteTimeout: z.number().int().min(1).max(3600).default(30),
+      streamingIdleTimeout: z.number().int().min(1).max(3600).default(120),
+      nonStreamingTimeout: z.number().int().min(1).max(3600).default(180),
+      apps: z
+        .object({
+          claude: proxyAppSchema.default(defaultProxyApp),
+          codex: proxyAppSchema.default(defaultProxyApp),
+          gemini: proxyAppSchema.default(defaultProxyApp),
+          opencode: proxyAppSchema.default(defaultProxyApp),
+        })
+        .default(defaultProxyApps),
+    })
+    .optional(),
 });
 
 export type SettingsFormData = z.infer<typeof settingsSchema>;

@@ -1,7 +1,13 @@
 import { http, HttpResponse } from "msw";
 import type { AppId } from "@/lib/api/types";
 import type { SkillRepo } from "@/lib/api/skills";
-import type { McpServer, Provider, Settings } from "@/types";
+import type {
+  McpServer,
+  Provider,
+  ProxyAppId,
+  ProxySettings,
+  Settings,
+} from "@/types";
 import {
   addProvider,
   deleteProvider,
@@ -32,6 +38,16 @@ import {
   getSkillReposState,
   addSkillRepoState,
   removeSkillRepoState,
+  getProxyConfigState,
+  getProxyRecentLogsState,
+  getProxyStatusState,
+  recoverStaleProxyTakeoverState,
+  restoreProxyState,
+  setProxyConfigState,
+  setProxyTakeoverState,
+  startProxyState,
+  stopProxyState,
+  testProxyState,
 } from "./state";
 
 const TAURI_ENDPOINT = "http://tauri.local";
@@ -79,19 +95,24 @@ export const handlers = [
   }),
 
   http.post(`${TAURI_ENDPOINT}/set_backup_provider`, async ({ request }) => {
-    const { app, id } = await withJson<{ app: AppId; id: string | null }>(request);
+    const { app, id } = await withJson<{ app: AppId; id: string | null }>(
+      request,
+    );
     setBackupProviderId(app, id ?? null);
     return success(true);
   }),
 
-  http.post(`${TAURI_ENDPOINT}/update_providers_sort_order`, async ({ request }) => {
-    const { updates = [], app } = await withJson<{
-      updates: { id: string; sortIndex: number }[];
-      app: AppId;
-    }>(request);
-    updateSortOrder(app, updates);
-    return success(true);
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/update_providers_sort_order`,
+    async ({ request }) => {
+      const { updates = [], app } = await withJson<{
+        updates: { id: string; sortIndex: number }[];
+        app: AppId;
+      }>(request);
+      updateSortOrder(app, updates);
+      return success(true);
+    },
+  ),
 
   http.post(`${TAURI_ENDPOINT}/update_tray_menu`, () => success(true)),
 
@@ -142,7 +163,10 @@ export const handlers = [
   http.post(`${TAURI_ENDPOINT}/get_skills`, () => success(getSkillsState())),
 
   http.post(`${TAURI_ENDPOINT}/install_skill`, async ({ request }) => {
-    const { directory } = await withJson<{ directory: string; force?: boolean }>(request);
+    const { directory } = await withJson<{
+      directory: string;
+      force?: boolean;
+    }>(request);
     installSkillState(directory);
     return success(true);
   }),
@@ -153,7 +177,9 @@ export const handlers = [
     return success(true);
   }),
 
-  http.post(`${TAURI_ENDPOINT}/get_skill_repos`, () => success(getSkillReposState())),
+  http.post(`${TAURI_ENDPOINT}/get_skill_repos`, () =>
+    success(getSkillReposState()),
+  ),
 
   http.post(`${TAURI_ENDPOINT}/add_skill_repo`, async ({ request }) => {
     const { repo } = await withJson<{ repo: SkillRepo }>(request);
@@ -162,7 +188,9 @@ export const handlers = [
   }),
 
   http.post(`${TAURI_ENDPOINT}/remove_skill_repo`, async ({ request }) => {
-    const { owner, name } = await withJson<{ owner: string; name: string }>(request);
+    const { owner, name } = await withJson<{ owner: string; name: string }>(
+      request,
+    );
     removeSkillRepoState(owner, name);
     return success(true);
   }),
@@ -173,7 +201,9 @@ export const handlers = [
     return success(getMcpConfig(app));
   }),
 
-  http.post(`${TAURI_ENDPOINT}/get_mcp_servers`, () => success(getUnifiedMcpServers())),
+  http.post(`${TAURI_ENDPOINT}/get_mcp_servers`, () =>
+    success(getUnifiedMcpServers()),
+  ),
 
   http.post(`${TAURI_ENDPOINT}/import_mcp_from_claude`, () => success(1)),
   http.post(`${TAURI_ENDPOINT}/import_mcp_from_codex`, () => success(1)),
@@ -210,21 +240,27 @@ export const handlers = [
     return success(true);
   }),
 
-  http.post(`${TAURI_ENDPOINT}/upsert_mcp_server_in_config`, async ({ request }) => {
-    const { app, id, spec } = await withJson<{
-      app: AppId;
-      id: string;
-      spec: McpServer;
-    }>(request);
-    upsertMcpServer(app, id, spec);
-    return success(true);
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/upsert_mcp_server_in_config`,
+    async ({ request }) => {
+      const { app, id, spec } = await withJson<{
+        app: AppId;
+        id: string;
+        spec: McpServer;
+      }>(request);
+      upsertMcpServer(app, id, spec);
+      return success(true);
+    },
+  ),
 
-  http.post(`${TAURI_ENDPOINT}/delete_mcp_server_in_config`, async ({ request }) => {
-    const { app, id } = await withJson<{ app: AppId; id: string }>(request);
-    deleteMcpServer(app, id);
-    return success(true);
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/delete_mcp_server_in_config`,
+    async ({ request }) => {
+      const { app, id } = await withJson<{ app: AppId; id: string }>(request);
+      deleteMcpServer(app, id);
+      return success(true);
+    },
+  ),
 
   http.post(`${TAURI_ENDPOINT}/restart_app`, () => success(true)),
 
@@ -238,11 +274,65 @@ export const handlers = [
     return success(true);
   }),
 
-  http.post(`${TAURI_ENDPOINT}/set_app_config_dir_override`, async ({ request }) => {
-    const { path } = await withJson<{ path: string | null }>(request);
-    setAppConfigDirOverrideState(path ?? null);
+  http.post(`${TAURI_ENDPOINT}/proxy_status`, () =>
+    success(getProxyStatusState()),
+  ),
+
+  http.post(`${TAURI_ENDPOINT}/proxy_recent_logs`, () =>
+    success(getProxyRecentLogsState()),
+  ),
+
+  http.post(`${TAURI_ENDPOINT}/proxy_config`, () =>
+    success(getProxyConfigState()),
+  ),
+
+  http.post(`${TAURI_ENDPOINT}/save_proxy_config`, async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    return success(setProxyConfigState(settings));
+  }),
+
+  http.post(`${TAURI_ENDPOINT}/save_proxy_settings`, async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    setProxyConfigState(settings);
     return success(true);
   }),
+
+  http.post(`${TAURI_ENDPOINT}/start_proxy`, async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    return success(startProxyState(settings));
+  }),
+
+  http.post(`${TAURI_ENDPOINT}/stop_proxy`, () => success(stopProxyState())),
+
+  http.post(`${TAURI_ENDPOINT}/test_proxy`, async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    return success(testProxyState(settings));
+  }),
+
+  http.post(`${TAURI_ENDPOINT}/set_proxy_takeover`, async ({ request }) => {
+    const { app, enabled } = await withJson<{
+      app: ProxyAppId;
+      enabled: boolean;
+    }>(request);
+    return success(setProxyTakeoverState(app, enabled));
+  }),
+
+  http.post(`${TAURI_ENDPOINT}/restore_proxy`, () =>
+    success(restoreProxyState()),
+  ),
+
+  http.post(`${TAURI_ENDPOINT}/recover_stale_proxy_takeover`, () =>
+    success(recoverStaleProxyTakeoverState()),
+  ),
+
+  http.post(
+    `${TAURI_ENDPOINT}/set_app_config_dir_override`,
+    async ({ request }) => {
+      const { path } = await withJson<{ path: string | null }>(request);
+      setAppConfigDirOverrideState(path ?? null);
+      return success(true);
+    },
+  ),
 
   http.post(`${TAURI_ENDPOINT}/get_app_config_dir_override`, () =>
     success(getAppConfigDirOverride()),
@@ -259,11 +349,56 @@ export const handlers = [
     });
   }),
 
-  http.post(`${TAURI_ENDPOINT}/apply_claude_plugin_config`, async ({ request }) => {
-    const { official } = await withJson<{ official: boolean }>(request);
-    setSettings({ enableClaudePluginIntegration: !official });
+  http.post(
+    `${TAURI_ENDPOINT}/apply_claude_plugin_config`,
+    async ({ request }) => {
+      const { official } = await withJson<{ official: boolean }>(request);
+      setSettings({ enableClaudePluginIntegration: !official });
+      return success(true);
+    },
+  ),
+
+  http.get("*/api/proxy/status", () => success(getProxyStatusState())),
+
+  http.get("*/api/proxy/logs/recent", () => success(getProxyRecentLogsState())),
+
+  http.get("*/api/proxy/config", () => success(getProxyConfigState())),
+
+  http.put("*/api/proxy/config", async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    return success(setProxyConfigState(settings));
+  }),
+
+  http.put("*/api/proxy/settings", async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    setProxyConfigState(settings);
     return success(true);
   }),
+
+  http.post("*/api/proxy/start", async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    return success(startProxyState(settings));
+  }),
+
+  http.post("*/api/proxy/stop", () => success(stopProxyState())),
+
+  http.post("*/api/proxy/test", async ({ request }) => {
+    const { settings } = await withJson<{ settings: ProxySettings }>(request);
+    return success(testProxyState(settings));
+  }),
+
+  http.get("*/api/proxy/takeover", () => success(getProxyStatusState())),
+
+  http.put("*/api/proxy/takeover/:app", async ({ params, request }) => {
+    const { enabled } = await withJson<{ enabled: boolean }>(request);
+    return success(setProxyTakeoverState(params.app as ProxyAppId, enabled));
+  }),
+
+  http.post("*/api/proxy/restore", () => success(restoreProxyState())),
+
+  http.post("*/api/proxy/recover-stale-takeover", () =>
+    success(recoverStaleProxyTakeoverState()),
+  ),
 
   http.post(`${TAURI_ENDPOINT}/get_config_dir`, async ({ request }) => {
     const { app } = await withJson<{ app: AppId }>(request);
@@ -272,14 +407,17 @@ export const handlers = [
 
   http.post(`${TAURI_ENDPOINT}/is_portable_mode`, () => success(false)),
 
-  http.post(`${TAURI_ENDPOINT}/select_config_directory`, async ({ request }) => {
-    const { defaultPath, default_path } = await withJson<{
-      defaultPath?: string;
-      default_path?: string;
-    }>(request);
-    const initial = defaultPath ?? default_path;
-    return success(initial ? `${initial}/picked` : "/mock/selected-dir");
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/select_config_directory`,
+    async ({ request }) => {
+      const { defaultPath, default_path } = await withJson<{
+        defaultPath?: string;
+        default_path?: string;
+      }>(request);
+      const initial = defaultPath ?? default_path;
+      return success(initial ? `${initial}/picked` : "/mock/selected-dir");
+    },
+  ),
 
   http.post(`${TAURI_ENDPOINT}/pick_directory`, async ({ request }) => {
     const { defaultPath, default_path } = await withJson<{
@@ -294,14 +432,17 @@ export const handlers = [
     success("/mock/import-settings.json"),
   ),
 
-  http.post(`${TAURI_ENDPOINT}/import_config_from_file`, async ({ request }) => {
-    const { filePath } = await withJson<{ filePath: string }>(request);
-    if (!filePath) {
-      return success({ success: false, message: "Missing file" });
-    }
-    setSettings({ language: "en" });
-    return success({ success: true, backupId: "backup-123" });
-  }),
+  http.post(
+    `${TAURI_ENDPOINT}/import_config_from_file`,
+    async ({ request }) => {
+      const { filePath } = await withJson<{ filePath: string }>(request);
+      if (!filePath) {
+        return success({ success: false, message: "Missing file" });
+      }
+      setSettings({ language: "en" });
+      return success({ success: true, backupId: "backup-123" });
+    },
+  ),
 
   http.post(`${TAURI_ENDPOINT}/export_config_to_file`, async ({ request }) => {
     const { filePath } = await withJson<{ filePath: string }>(request);
@@ -330,7 +471,11 @@ export const handlers = [
           provider_url: "https://88code.com",
           service: "cc",
           category: "commercial",
-          current_status: { status: 1, latency: 1500, timestamp: Date.now() / 1000 },
+          current_status: {
+            status: 1,
+            latency: 1500,
+            timestamp: Date.now() / 1000,
+          },
           timeline: [{ availability: 95 }, { availability: 98 }],
         },
         {
@@ -338,7 +483,11 @@ export const handlers = [
           provider_url: "https://duckcoding.com",
           service: "cc",
           category: "commercial",
-          current_status: { status: 2, latency: 3000, timestamp: Date.now() / 1000 },
+          current_status: {
+            status: 2,
+            latency: 3000,
+            timestamp: Date.now() / 1000,
+          },
           timeline: [{ availability: 85 }],
         },
         {
@@ -346,7 +495,11 @@ export const handlers = [
           provider_url: "https://packyapi.com",
           service: "cc",
           category: "commercial",
-          current_status: { status: 0, latency: 0, timestamp: Date.now() / 1000 },
+          current_status: {
+            status: 0,
+            latency: 0,
+            timestamp: Date.now() / 1000,
+          },
           timeline: [{ availability: 20 }],
         },
       ],
@@ -362,7 +515,11 @@ export const handlers = [
           provider_url: "https://88code.com",
           service: "cc",
           category: "commercial",
-          current_status: { status: 1, latency: 1500, timestamp: Date.now() / 1000 },
+          current_status: {
+            status: 1,
+            latency: 1500,
+            timestamp: Date.now() / 1000,
+          },
           timeline: [{ availability: 95 }, { availability: 98 }],
         },
         {
@@ -370,7 +527,11 @@ export const handlers = [
           provider_url: "https://duckcoding.com",
           service: "cc",
           category: "commercial",
-          current_status: { status: 2, latency: 3000, timestamp: Date.now() / 1000 },
+          current_status: {
+            status: 2,
+            latency: 3000,
+            timestamp: Date.now() / 1000,
+          },
           timeline: [{ availability: 85 }],
         },
         {
@@ -378,7 +539,11 @@ export const handlers = [
           provider_url: "https://packyapi.com",
           service: "cc",
           category: "commercial",
-          current_status: { status: 0, latency: 0, timestamp: Date.now() / 1000 },
+          current_status: {
+            status: 0,
+            latency: 0,
+            timestamp: Date.now() / 1000,
+          },
           timeline: [{ availability: 20 }],
         },
       ],

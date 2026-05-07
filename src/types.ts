@@ -1,3 +1,5 @@
+export type ProxyAppId = "claude" | "codex" | "gemini" | "opencode";
+
 export type ProviderCategory =
   | "official" // 官方
   | "cn_official" // 开源官方（原"国产官方"）
@@ -113,6 +115,78 @@ export interface Settings {
       selectedType?: string;
     };
   };
+  proxy?: ProxySettings;
+}
+
+export interface ProxySettings {
+  enabled: boolean;
+  host: string;
+  port: number;
+  upstreamProxy?: string;
+  bindApp: ProxyAppId;
+  autoStart: boolean;
+  enableLogging: boolean;
+  liveTakeoverActive: boolean;
+  streamingFirstByteTimeout: number;
+  streamingIdleTimeout: number;
+  nonStreamingTimeout: number;
+  apps: Record<ProxyAppId, ProxyAppSettings>;
+}
+
+export interface ProxyAppSettings {
+  enabled: boolean;
+  autoFailoverEnabled: boolean;
+  maxRetries: number;
+}
+
+export interface ProxyStatus {
+  running: boolean;
+  address: string;
+  port: number;
+  listenUrl?: string;
+  activeConnections: number;
+  totalRequests: number;
+  successRequests: number;
+  failedRequests: number;
+  successRate: number;
+  uptimeSeconds: number;
+  activeTargets: ProxyActiveTarget[];
+  takeover: Record<ProxyAppId | "omo", boolean>;
+  bindApp: ProxyAppId;
+  lastRequestAt?: string;
+  lastError?: string;
+  failoverCount?: number;
+  lastFailoverAt?: string;
+  lastFailoverFrom?: string;
+  lastFailoverTo?: string;
+}
+
+export interface ProxyActiveTarget {
+  appType: ProxyAppId;
+  providerId: string;
+  providerName: string;
+}
+
+export interface ProxyTestResult {
+  success: boolean;
+  message: string;
+  baseUrl?: string;
+}
+
+export interface ProxyTakeoverResult {
+  app: ProxyAppId;
+  enabled: boolean;
+  status: ProxyStatus;
+}
+
+export interface ProxyRecentLog {
+  at: string;
+  app: string;
+  method: string;
+  path: string;
+  status?: number | null;
+  durationMs: number;
+  error?: string | null;
 }
 
 // MCP 服务器连接参数（宽松：允许扩展字段）
