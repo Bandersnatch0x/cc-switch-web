@@ -75,15 +75,11 @@ function SkillsPageContent({ onClose: _onClose, appId }: SkillsPageProps = {}) {
     skills.forEach((skill) => {
       const key = getRepoKey(skill);
       if (key === "__local__") {
-        options.set(
-          key,
-          t("skills.repo.local", { defaultValue: "本地" }),
-        );
+        options.set(key, t("skills.repo.local", { defaultValue: "本地" }));
         return;
       }
       const [repo, branch] = key.split("@");
-      const label =
-        branch && branch !== "main" ? `${repo}@${branch}` : repo;
+      const label = branch && branch !== "main" ? `${repo}@${branch}` : repo;
       options.set(key, label);
     });
 
@@ -197,6 +193,7 @@ function SkillsPageContent({ onClose: _onClose, appId }: SkillsPageProps = {}) {
     searchQuery.trim().length > 0 ||
     installFilter !== "all" ||
     repoFilter !== "all";
+  const isOmoSkillsView = currentApp === "omo";
 
   const handleClearFilters = () => {
     setSearchQuery("");
@@ -277,10 +274,7 @@ function SkillsPageContent({ onClose: _onClose, appId }: SkillsPageProps = {}) {
       }
       return { ok: true, stale: true };
     } finally {
-      if (
-        requestId === loadSkillsRequestId.current &&
-        isMountedRef.current
-      ) {
+      if (requestId === loadSkillsRequestId.current && isMountedRef.current) {
         setLoading(false);
       }
     }
@@ -570,6 +564,14 @@ function SkillsPageContent({ onClose: _onClose, appId }: SkillsPageProps = {}) {
             </Button>
           ))}
         </div>
+        {isOmoSkillsView ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("skills.omoUsesOpencode", {
+              defaultValue:
+                "OMO 暂无独立 Skills 目录，此处复用 OpenCode 的 ~/.config/opencode/skills。",
+            })}
+          </p>
+        ) : null}
         {statusLabel && (
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {statusLabel}

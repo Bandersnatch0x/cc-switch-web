@@ -14,6 +14,47 @@ export function formatJSON(value: string): string {
 }
 
 /**
+ * Format a provider settings object without collapsing nested sections such as
+ * Claude's `env`. If users paste only env variables at the root for Claude,
+ * normalize that fragment back into `{ "env": ... }`.
+ */
+export function formatProviderSettingsJSON(
+  value: string,
+  appId?: string,
+): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const parsed = JSON.parse(trimmed);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return JSON.stringify(parsed, null, 2);
+  }
+
+  if (
+    appId === "claude" &&
+    !Object.prototype.hasOwnProperty.call(parsed, "env")
+  ) {
+    const keys = Object.keys(parsed);
+    const looksLikeClaudeEnv =
+      keys.length > 0 &&
+      keys.every(
+        (key) =>
+          key.startsWith("ANTHROPIC_") ||
+          key === "API_TIMEOUT_MS" ||
+          key === "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+      );
+
+    if (looksLikeClaudeEnv) {
+      return JSON.stringify({ env: parsed }, null, 2);
+    }
+  }
+
+  return JSON.stringify(parsed, null, 2);
+}
+
+/**
  * MCP JSON 格式化（支持带键名包装的格式）
  * @param value - 原始 JSON 字符串
  * @returns 格式化后的 JSON 字符串（2 空格缩进）

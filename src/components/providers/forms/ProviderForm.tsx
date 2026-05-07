@@ -870,6 +870,7 @@ export function ProviderForm({
               isModalOpen={isCommonConfigModalOpen}
               onModalClose={() => setIsCommonConfigModalOpen(false)}
               showCommonConfigControls={appId === "claude"}
+              appId={appId}
             />
             {/* 配置验证错误显示 */}
             <FormField

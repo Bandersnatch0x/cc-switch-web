@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Save, Wand2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatJSON } from "@/utils/formatters";
+import { formatJSON, formatProviderSettingsJSON } from "@/utils/formatters";
 
 interface CommonConfigEditorProps {
   value: string;
@@ -25,6 +25,7 @@ interface CommonConfigEditorProps {
   isModalOpen: boolean;
   onModalClose: () => void;
   showCommonConfigControls?: boolean;
+  appId?: string;
 }
 
 export function CommonConfigEditor({
@@ -39,6 +40,7 @@ export function CommonConfigEditor({
   isModalOpen,
   onModalClose,
   showCommonConfigControls = true,
+  appId,
 }: CommonConfigEditorProps) {
   const { t } = useTranslation();
 
@@ -46,7 +48,7 @@ export function CommonConfigEditor({
     if (!value.trim()) return;
 
     try {
-      const formatted = formatJSON(value);
+      const formatted = formatProviderSettingsJSON(value, appId);
       onChange(formatted);
       toast.success(t("common.formatSuccess", { defaultValue: "格式化成功" }));
     } catch (error) {

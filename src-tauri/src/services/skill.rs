@@ -1864,8 +1864,32 @@ impl SkillService {
 mod tests {
     use super::*;
     use serde_json::Value;
+    use serial_test::serial;
     use std::io::Write;
     use zip::write::FileOptions;
+
+    struct EnvGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let original = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            if let Some(value) = &self.original {
+                std::env::set_var(self.key, value);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
+    }
 
     fn build_service_with_install_dir(dir: PathBuf) -> SkillService {
         SkillService {
@@ -1914,6 +1938,35 @@ mod tests {
             .expect("default anthropics skills repo should exist");
 
         assert_eq!(repo.skills_path.as_deref(), Some("skills"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_install_dirs_are_app_specific_without_nested_skills() {
+        let temp_dir = tempfile::tempdir().expect("temp dir should exist");
+        let home = temp_dir.path().to_string_lossy().to_string();
+        let _home_guard = EnvGuard::set("HOME", &home);
+        let _user_profile_guard = EnvGuard::set("USERPROFILE", &home);
+
+        let claude = SkillService::get_install_dir_for_app(&AppType::Claude)
+            .expect("claude install dir should resolve");
+        let codex = SkillService::get_install_dir_for_app(&AppType::Codex)
+            .expect("codex install dir should resolve");
+        let opencode = SkillService::get_install_dir_for_app(&AppType::Opencode)
+            .expect("opencode install dir should resolve");
+
+        assert_eq!(claude, temp_dir.path().join(".claude").join("skills"));
+        assert_eq!(codex, temp_dir.path().join(".codex").join("skills"));
+        assert_eq!(
+            opencode,
+            temp_dir
+                .path()
+                .join(".config")
+                .join("opencode")
+                .join("skills")
+        );
+        assert!(!claude.ends_with("skills/skills"));
+        assert!(!codex.ends_with("skills/skills"));
     }
 
     #[test]
@@ -2105,6 +2158,26 @@ description: Useful skill
         let parsed: Value =
             serde_json::from_str(&err.to_string()).expect("should parse error json");
         assert_eq!(parsed["code"], "SKILL_PATH_INVALID");
+    }
+
+    #[test]
+    fn test_anthropics_skills_source_installs_without_nested_skills_directory() {
+        let temp_dir = tempfile::tempdir().expect("temp dir should exist");
+        let repo_root = temp_dir.path().join("repo");
+        let source = repo_root.join("skills").join("demo-skill");
+        let install_dir = temp_dir.path().join("install");
+        let dest = install_dir.join("demo-skill");
+        fs::create_dir_all(&source).expect("source should exist");
+        fs::write(source.join("SKILL.md"), "---\nname: Demo\n---\n").expect("write skill");
+
+        let resolved =
+            SkillService::resolve_install_source_path(&repo_root, "demo-skill", Some("skills"))
+                .expect("source path should resolve");
+        assert_eq!(resolved, source);
+
+        SkillService::install_from_source(&resolved, &dest, false).expect("install should succeed");
+        assert!(install_dir.join("demo-skill").join("SKILL.md").is_file());
+        assert!(!install_dir.join("skills").join("demo-skill").exists());
     }
 
     #[test]
