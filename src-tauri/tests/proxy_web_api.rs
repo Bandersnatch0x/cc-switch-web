@@ -4,10 +4,11 @@ use std::{
     env,
     ffi::OsString,
     sync::{Arc, RwLock},
+    time::Duration,
 };
 
 use axum::{
-    body::{to_bytes, Body},
+    body::{to_bytes, Body, Bytes},
     http::{
         header::{AUTHORIZATION, CONTENT_TYPE},
         HeaderValue, Method, Request, StatusCode,
@@ -16,6 +17,7 @@ use axum::{
 };
 use base64::Engine;
 use cc_switch_lib::{web_api, AppState, AppType, MultiAppConfig, Provider, ProviderMeta};
+use futures::StreamExt;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use serial_test::serial;
@@ -273,6 +275,55 @@ async fn spawn_text_upstream(
                         .expect("response")
                 }
             }),
+        );
+    let handle = tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+    (format!("http://{addr}"), handle)
+}
+
+async fn spawn_delayed_stream_upstream(
+    first_delay: Duration,
+    second_delay: Option<Duration>,
+) -> (String, tokio::task::JoinHandle<()>) {
+    async fn stream_response(
+        first_delay: Duration,
+        second_delay: Option<Duration>,
+    ) -> axum::response::Response {
+        let first = futures::stream::once(async move {
+            tokio::time::sleep(first_delay).await;
+            Ok::<Bytes, std::io::Error>(Bytes::from_static(b"data: first\n\n"))
+        });
+        let body_stream = if let Some(second_delay) = second_delay {
+            first
+                .chain(futures::stream::once(async move {
+                    tokio::time::sleep(second_delay).await;
+                    Ok::<Bytes, std::io::Error>(Bytes::from_static(b"data: second\n\n"))
+                }))
+                .boxed()
+        } else {
+            first.boxed()
+        };
+
+        axum::response::Response::builder()
+            .status(StatusCode::OK)
+            .header(CONTENT_TYPE, "text/event-stream")
+            .body(Body::from_stream(body_stream))
+            .expect("response")
+    }
+
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind upstream");
+    let addr = listener.local_addr().expect("upstream addr");
+    let app = axum::Router::new()
+        .route(
+            "/",
+            axum::routing::any(move || stream_response(first_delay, second_delay)),
+        )
+        .route(
+            "/*path",
+            axum::routing::any(move || stream_response(first_delay, second_delay)),
         );
     let handle = tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
@@ -742,6 +793,122 @@ async fn proxy_streaming_response_is_passed_through_without_conversion() {
     let body = proxy_response.text().await.expect("streaming body");
     assert!(content_type.contains("text/event-stream"));
     assert_eq!(body, "data: one\n\ndata: two\n\n");
+
+    let _ = dispatch(app, request(Method::POST, "/api/proxy/stop", None)).await;
+    upstream_handle.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn proxy_streaming_first_byte_timeout_returns_bad_gateway() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    let _account_guard = setup();
+    let (upstream_base, upstream_handle) =
+        spawn_delayed_stream_upstream(Duration::from_secs(2), None).await;
+    let proxy_port = free_tcp_port();
+    let app = make_app_with_claude_provider(
+        "password",
+        "csrf-token",
+        claude_provider_with_base_url(&upstream_base),
+    );
+
+    let res = dispatch(
+        app.clone(),
+        request(
+            Method::POST,
+            "/api/proxy/start",
+            Some(json!({
+                "settings": {
+                    "host": "127.0.0.1",
+                    "port": proxy_port,
+                    "bindApp": "claude",
+                    "streamingFirstByteTimeout": 1,
+                    "streamingIdleTimeout": 5
+                }
+            })),
+        ),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let status: Value = json_body(res).await;
+    let listen_url = status["listenUrl"].as_str().expect("listen URL");
+
+    let proxy_response = reqwest::Client::new()
+        .post(format!("{listen_url}/v1/messages"))
+        .header("accept", "text/event-stream")
+        .json(&json!({ "messages": [] }))
+        .send()
+        .await
+        .expect("proxy request");
+    assert_eq!(proxy_response.status(), reqwest::StatusCode::BAD_GATEWAY);
+    let body = proxy_response.text().await.expect("error body");
+    assert!(
+        body.contains("first byte"),
+        "expected first-byte timeout error, got {body}"
+    );
+
+    let _ = dispatch(app, request(Method::POST, "/api/proxy/stop", None)).await;
+    upstream_handle.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn proxy_streaming_idle_timeout_terminates_body_after_first_chunk() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    let _account_guard = setup();
+    let (upstream_base, upstream_handle) =
+        spawn_delayed_stream_upstream(Duration::from_millis(10), Some(Duration::from_secs(2)))
+            .await;
+    let proxy_port = free_tcp_port();
+    let app = make_app_with_claude_provider(
+        "password",
+        "csrf-token",
+        claude_provider_with_base_url(&upstream_base),
+    );
+
+    let res = dispatch(
+        app.clone(),
+        request(
+            Method::POST,
+            "/api/proxy/start",
+            Some(json!({
+                "settings": {
+                    "host": "127.0.0.1",
+                    "port": proxy_port,
+                    "bindApp": "claude",
+                    "streamingFirstByteTimeout": 1,
+                    "streamingIdleTimeout": 1
+                }
+            })),
+        ),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let status: Value = json_body(res).await;
+    let listen_url = status["listenUrl"].as_str().expect("listen URL");
+
+    let proxy_response = reqwest::Client::new()
+        .post(format!("{listen_url}/v1/messages"))
+        .header("accept", "text/event-stream")
+        .json(&json!({ "messages": [] }))
+        .send()
+        .await
+        .expect("proxy request");
+    assert_eq!(proxy_response.status(), reqwest::StatusCode::OK);
+
+    let mut stream = proxy_response.bytes_stream();
+    let first = stream
+        .next()
+        .await
+        .expect("first chunk should arrive")
+        .expect("first chunk should be ok");
+    assert_eq!(first, Bytes::from_static(b"data: first\n\n"));
+
+    match stream.next().await {
+        Some(Err(_)) => {}
+        Some(Ok(bytes)) => panic!("expected idle timeout error, got chunk {bytes:?}"),
+        None => panic!("expected idle timeout error before stream end"),
+    }
 
     let _ = dispatch(app, request(Method::POST, "/api/proxy/stop", None)).await;
     upstream_handle.abort();

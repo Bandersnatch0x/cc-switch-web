@@ -39,13 +39,13 @@ If you have any questions, you can contact me here https://linux.do/t/topic/1217
 
 ## What's New
 
-### v0.10.2-rc.1 - Prerelease
+### v0.11.0-rc.1 - Prerelease
 
 - Add Web/headless local HTTP forward proxy v1 with Settings controls for start, stop, status, test, and auto-start
 - Fix Claude provider JSON formatting so the outer `env` object is preserved
 - Fix the default Anthropic Skills repository scan path to avoid `skills/skills/*` installs
 - Improve OMO MCP / Skills entry points and clarify that OMO Skills reuse OpenCode storage
-- Release notes: [v0.10.2-rc.1](docs/release-note-v0.10.2-rc.1-en.md)
+- Release notes: [v0.11.0-rc.1](docs/release-note-v0.11.0-rc.1-en.md)
 
 ### v0.10.1 - Current Stable Release
 

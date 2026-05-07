@@ -1,14 +1,14 @@
-# cc-switch-web v0.10.2-rc.1
+# cc-switch-web v0.11.0-rc.1
 
 > A prerelease focused on Web/headless local proxy support and OpenCode / OMO fixes
 
-**[中文更新说明 Chinese Documentation ->](release-note-v0.10.2-rc.1-zh.md)**
+**[中文更新说明 Chinese Documentation ->](release-note-v0.11.0-rc.1-zh.md)**
 
 ---
 
 ## Overview
 
-`v0.10.2-rc.1` focuses on two areas: fixing user-reported issues around existing Web UI behavior, and adding the first version of the local HTTP forward proxy for Web/headless, Docker, and remote-server workflows.
+`v0.11.0-rc.1` focuses on two areas: fixing user-reported issues around existing Web UI behavior, and adding the first version of the local HTTP forward proxy for Web/headless, Docker, and remote-server workflows.
 
 ---
 

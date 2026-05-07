@@ -12,6 +12,8 @@ pub mod speedtest;
 pub use config::ConfigService;
 pub use mcp::McpService;
 pub use prompt::PromptService;
-pub use provider::{ProviderService, ProviderSortUpdate};
+pub use provider::ProviderService;
+#[cfg(feature = "desktop")]
+pub use provider::ProviderSortUpdate;
 pub use skill::{Skill, SkillRepo, SkillService};
 pub use speedtest::{EndpointLatency, SpeedtestService};

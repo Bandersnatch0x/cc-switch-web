@@ -1,14 +1,14 @@
-# cc-switch-web v0.10.2-rc.1
+# cc-switch-web v0.11.0-rc.1
 
 > 面向 Web/headless 场景的代理能力与 OpenCode / OMO 体验修复预发布版本
 
-**[English Version ->](release-note-v0.10.2-rc.1-en.md)**
+**[English Version ->](release-note-v0.11.0-rc.1-en.md)**
 
 ---
 
 ## 概览
 
-`v0.10.2-rc.1` 聚焦两个方向：修复用户在 Issues 中反馈的现有功能缺陷，并加入第一版本地 HTTP 转发代理能力，方便 Web/headless、Docker、远程服务器等场景通过 cc-switch-web 统一承接请求。
+`v0.11.0-rc.1` 聚焦两个方向：修复用户在 Issues 中反馈的现有功能缺陷，并加入第一版本地 HTTP 转发代理能力，方便 Web/headless、Docker、远程服务器等场景通过 cc-switch-web 统一承接请求。
 
 ---
 

@@ -5,7 +5,7 @@ All notable changes to CC Switch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.2-rc.1] - 2026-05-07
+## [0.11.0-rc.1] - 2026-05-07
 
 ### Features / 新特性
 
@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The local proxy is an application-level HTTP API proxy only; it does not modify OS global proxy settings, PAC files, or Clash-style rules
 - For safety, proxy defaults to `127.0.0.1`; binding to `0.0.0.0` is surfaced as a risky public-bind configuration in the UI
 - Multi-provider failover queues, usage/cost accounting, and cross-provider request/stream format conversion are intentionally deferred to later releases
-- This prerelease validates the OpenCode / OMO Web UI environment before the stable `0.10.2` release
+- This prerelease validates the Web/headless proxy and OpenCode / OMO Web UI environment before the stable `0.11.0` release
 
 ### Tests / 测试
 
