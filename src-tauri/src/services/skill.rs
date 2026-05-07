@@ -754,7 +754,7 @@ impl SkillService {
                 .any(|app_id| app_id == self.app.as_str());
             skill.installed_apps = installed_apps;
         }
-        skills.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        skills.sort_by_key(|skill| skill.name.to_lowercase());
 
         Ok(SkillListResult {
             skills,
