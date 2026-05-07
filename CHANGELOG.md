@@ -5,7 +5,35 @@ All notable changes to CC Switch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.2-rc.1] - 2026-05-06
+## [0.10.2-rc.1] - 2026-05-07
+
+### Features / 新特性
+
+- Upgrade the Web/headless local proxy from the initial single-app forwarder into an extensible proxy service with provider adapters, runtime stats, live takeover, and restore support
+- Add Web/headless local proxy APIs:
+  - `GET /api/proxy/status`
+  - `GET /api/proxy/config`
+  - `PUT /api/proxy/config`
+  - `PUT /api/proxy/settings`
+  - `POST /api/proxy/start`
+  - `POST /api/proxy/stop`
+  - `POST /api/proxy/test`
+- Add per-client takeover APIs:
+  - `GET /api/proxy/takeover`
+  - `PUT /api/proxy/takeover/:app`
+  - `POST /api/proxy/restore`
+  - `POST /api/proxy/recover-stale-takeover`
+- Add proxy settings persistence under `AppSettings.proxy`, including listen host, port, upstream proxy, Web-server auto-start, logging flag, timeout knobs, and per-client takeover settings
+- Add live config takeover and restore for Claude, Codex, and Gemini; OpenCode takeover is available as an experimental option, while OMO remains unsupported
+- Back up takeover-managed live config into `~/.cc-switch/proxy-backups.json`, write `PROXY_MANAGED` placeholders to client config, and restore original files when proxy takeover is stopped or restored
+- Add Claude, Codex/OpenAI, Gemini, and OpenCode adapter layers for base URL normalization, auth header injection, and Codex `/v1` / Gemini `/v1beta` de-duplication
+- Route known Claude, Codex/OpenAI, and Gemini API paths through one local proxy port, with `bindApp` retained as a compatibility fallback route
+- Add a Web Settings proxy panel for runtime stats, global proxy settings, per-client takeover switches, and restore controls without exposing provider API keys in the UI
+- Auto-start the local proxy in Web server mode when saved proxy settings enable both `enabled` and `autoStart`
+- Switch providers without rewriting live config while proxy takeover is enabled, so the next CLI request uses the newly selected provider through the running proxy
+- Add in-memory proxy recent logs with sensitive query redaction and `GET /api/proxy/logs/recent`
+- Add streaming passthrough with first-byte and idle timeout controls for SSE / chunked upstream responses
+- Add first-pass proxy failover using the existing `backupCurrent` provider, including runtime circuit state and failover status fields
 
 ### Fixes / 修复
 
@@ -13,16 +41,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Map OMO Skills management to OpenCode Skills storage, matching the shared OpenCode / OMO configuration model
 - Fix the default Anthropic Skills repository scan path to use the `skills` subdirectory and avoid nested `skills/skills/*` installs
 - Add migration logic for existing default Anthropic Skills repository entries with an empty scan path
+- Fix Claude provider JSON formatting so formatting preserves the full `settingsConfig` object and does not drop the outer `env` layer
+- Normalize root-level Claude `ANTHROPIC_*` environment fragments back into `{ "env": ... }` when formatting provider settings
 
 ### Notes / 说明
 
 - OMO provider management remains separate
 - OMO MCP and Skills management currently operate through OpenCode's shared configuration and storage model
+- OMO Skills now explicitly explains that it reuses OpenCode's `~/.config/opencode/skills` storage instead of showing a misleading empty state
+- The local proxy is an application-level HTTP API proxy only; it does not modify OS global proxy settings, PAC files, or Clash-style rules
+- For safety, proxy defaults to `127.0.0.1`; binding to `0.0.0.0` is surfaced as a risky public-bind configuration in the UI
+- Multi-provider failover queues, usage/cost accounting, and cross-provider request/stream format conversion are intentionally deferred to later releases
 - This prerelease validates the OpenCode / OMO Web UI environment before the stable `0.10.2` release
 
 ### Tests / 测试
 
+- Add targeted proxy coverage for Codex `/v1` de-duplication, Gemini `/v1beta` de-duplication, Claude takeover env preservation/model override removal, and Codex placeholder takeover config
 - Add targeted OMO-to-OpenCode Skills API mapping coverage
+- Add provider-formatting regression coverage for Claude `env` preservation and env-fragment normalization
+- Add Skills install-path regression coverage for Claude, Codex, and OpenCode install directories
 
 ## [0.10.1] - 2026-03-15
 

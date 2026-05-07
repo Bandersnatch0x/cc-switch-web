@@ -37,6 +37,14 @@
 
 ## 更新内容
 
+### v0.10.2-rc.1 - 预发布
+
+- 新增 Web/headless 本地 HTTP 转发代理 v1，支持设置页启动、停止、状态查看、测试与自动启动
+- 修复 Claude provider JSON 格式化丢失 `env` 外层的问题
+- 修复 Anthropic Skills 默认仓库扫描路径，避免安装到 `skills/skills/*`
+- 改进 OMO 下 MCP / Skills 入口与说明，Skills 明确复用 OpenCode 存储
+- 更新说明：[v0.10.2-rc.1](docs/release-note-v0.10.2-rc.1-zh.md)
+
 ### v0.10.1 - 当前稳定版
 
 - 适合日常使用与生产环境
