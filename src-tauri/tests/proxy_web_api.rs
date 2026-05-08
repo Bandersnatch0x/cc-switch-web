@@ -636,6 +636,74 @@ async fn proxy_config_routes_reject_invalid_settings_boundaries() {
 
 #[tokio::test]
 #[serial]
+async fn proxy_start_is_idempotent_when_current_runtime_already_owns_port() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    let _account_guard = setup();
+    let app = make_app("password", "csrf-token");
+    let proxy_port = free_tcp_port();
+    let payload = json!({
+        "settings": {
+            "host": "127.0.0.1",
+            "port": proxy_port,
+            "bindApp": "claude"
+        }
+    });
+
+    let res = dispatch(
+        app.clone(),
+        request(Method::POST, "/api/proxy/start", Some(payload.clone())),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let first: Value = json_body(res).await;
+    assert_eq!(first["running"], json!(true));
+
+    let res = dispatch(
+        app.clone(),
+        request(Method::POST, "/api/proxy/start", Some(payload)),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let second: Value = json_body(res).await;
+    assert_eq!(second["running"], json!(true));
+    assert_eq!(second["listenUrl"], first["listenUrl"]);
+
+    let _ = dispatch(app, request(Method::POST, "/api/proxy/stop", None)).await;
+}
+
+#[tokio::test]
+#[serial]
+async fn proxy_start_reports_clear_error_when_port_is_owned_by_another_process() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    let _account_guard = setup();
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("bind occupied port");
+    let occupied_port = listener.local_addr().expect("occupied addr").port();
+    let app = make_app("password", "csrf-token");
+
+    let res = dispatch(
+        app,
+        request(
+            Method::POST,
+            "/api/proxy/start",
+            Some(json!({
+                "settings": {
+                    "host": "127.0.0.1",
+                    "port": occupied_port,
+                    "bindApp": "claude"
+                }
+            })),
+        ),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    let body: Value = json_body(res).await;
+    let error = body["error"].as_str().unwrap_or_default();
+    assert!(error.contains("已被占用") || error.contains("already in use"));
+    assert!(!error.contains("Failed to bind proxy listener"));
+}
+
+#[tokio::test]
+#[serial]
 async fn proxy_routes_return_json_rejections_for_malformed_or_missing_payloads() {
     let _guard = test_mutex().lock().expect("acquire test mutex");
     let _account_guard = setup();
@@ -966,6 +1034,84 @@ async fn proxy_failover_switches_backup_provider_to_current() {
     assert_eq!(
         proxy_response.text().await.expect("proxy response body"),
         r#"{"ok":true}"#
+    );
+
+    let res = dispatch(
+        app.clone(),
+        request(Method::GET, "/api/providers/claude/current", None),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let current: Value = json_body(res).await;
+    assert_eq!(current, json!("claude-backup"));
+
+    let res = dispatch(app.clone(), request(Method::GET, "/api/proxy/status", None)).await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let status: Value = json_body(res).await;
+    assert_eq!(status["failoverCount"], json!(1));
+    assert_eq!(status["lastFailoverFrom"], json!("Claude Primary"));
+    assert_eq!(status["lastFailoverTo"], json!("Claude Backup"));
+
+    let _ = dispatch(app, request(Method::POST, "/api/proxy/stop", None)).await;
+    primary_handle.abort();
+    backup_handle.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn proxy_streaming_first_byte_timeout_fails_over_before_sending_body() {
+    let _guard = test_mutex().lock().expect("acquire test mutex");
+    let _account_guard = setup();
+    let (primary_base, primary_handle) =
+        spawn_delayed_stream_upstream(Duration::from_secs(2), None).await;
+    let (backup_base, backup_handle) =
+        spawn_text_upstream(StatusCode::OK, "text/event-stream", "data: backup\n\n").await;
+    let proxy_port = free_tcp_port();
+    let app = make_app_with_claude_failover(
+        "password",
+        "csrf-token",
+        claude_provider_with_id_base_url("claude-primary", "Claude Primary", &primary_base),
+        claude_provider_with_id_base_url("claude-backup", "Claude Backup", &backup_base),
+    );
+
+    let res = dispatch(
+        app.clone(),
+        request(
+            Method::POST,
+            "/api/proxy/start",
+            Some(json!({
+                "settings": {
+                    "host": "127.0.0.1",
+                    "port": proxy_port,
+                    "bindApp": "claude",
+                    "streamingFirstByteTimeout": 1,
+                    "streamingIdleTimeout": 5,
+                    "apps": {
+                        "claude": {
+                            "autoFailoverEnabled": true,
+                            "maxRetries": 1
+                        }
+                    }
+                }
+            })),
+        ),
+    )
+    .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let status: Value = json_body(res).await;
+    let listen_url = status["listenUrl"].as_str().expect("listen URL");
+
+    let proxy_response = reqwest::Client::new()
+        .post(format!("{listen_url}/v1/messages"))
+        .header("accept", "text/event-stream")
+        .json(&json!({ "messages": [] }))
+        .send()
+        .await
+        .expect("proxy request");
+    assert_eq!(proxy_response.status(), reqwest::StatusCode::OK);
+    assert_eq!(
+        proxy_response.text().await.expect("proxy body"),
+        "data: backup\n\n"
     );
 
     let res = dispatch(

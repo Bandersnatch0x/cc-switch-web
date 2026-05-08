@@ -50,6 +50,7 @@ export function ProxySettingsSection({
     | "start"
     | "stop"
     | "test"
+    | `test:${ProxyAppId}`
     | "restore"
     | `takeover:${ProxyAppId}`
     | null
@@ -145,6 +146,15 @@ export function ProxySettingsSection({
 
   const handleStart = async () => {
     if (!validateBeforeStart()) return;
+    if (status?.running) {
+      await loadStatus();
+      toast.info(
+        t("settings.proxy.alreadyRunning", {
+          defaultValue: "代理已在运行",
+        }),
+      );
+      return;
+    }
     setBusyAction("start");
     try {
       const nextStatus = await settingsApi.startProxy({
@@ -248,13 +258,25 @@ export function ProxySettingsSection({
     }
   };
 
-  const handleTest = async () => {
-    setBusyAction("test");
+  const handleTest = async (app?: ProxyAppId) => {
+    const testApp = app ?? (value.bindApp as ProxyAppId);
+    setBusyAction(app ? `test:${app}` : "test");
     try {
-      const result = await settingsApi.testProxy(value);
+      const result = await settingsApi.testProxy({
+        ...value,
+        bindApp: testApp,
+      });
       toast.success(
         t("settings.proxy.testSuccess", { defaultValue: "代理配置有效" }),
-        { description: result.baseUrl || result.message },
+        {
+          description:
+            result.baseUrl ||
+            t("settings.proxy.testedApp", {
+              defaultValue: "已测试当前客户端",
+              app: t(`apps.${testApp}`, { defaultValue: testApp }),
+            }) ||
+            result.message,
+        },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -269,6 +291,9 @@ export function ProxySettingsSection({
 
   const isBusy = busyAction !== null;
   const isRunning = status?.running ?? false;
+  const bindAppName = t(`apps.${value.bindApp}`, {
+    defaultValue: value.bindApp,
+  });
 
   return (
     <section className="space-y-4">
@@ -375,26 +400,6 @@ export function ProxySettingsSection({
           />
         </div>
         <div className="space-y-2">
-          <Label>
-            {t("settings.proxy.bindApp", { defaultValue: "绑定客户端" })}
-          </Label>
-          <Select
-            value={value.bindApp}
-            onValueChange={(app) => update({ bindApp: app as ProxyAppId })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PROXY_APPS.map((app) => (
-                <SelectItem key={app} value={app}>
-                  {t(`apps.${app}`, { defaultValue: app })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="cc-switch-proxy-upstream">
             {t("settings.proxy.upstreamProxy", {
               defaultValue: "上游代理",
@@ -449,7 +454,7 @@ export function ProxySettingsSection({
             value={value.streamingFirstByteTimeout}
             onChange={(event) =>
               update({
-                streamingFirstByteTimeout: Number(event.target.value) || 30,
+                streamingFirstByteTimeout: Number(event.target.value) || 90,
               })
             }
           />
@@ -498,7 +503,7 @@ export function ProxySettingsSection({
           <p className="text-xs text-muted-foreground">
             {t("settings.proxy.takeoverDescription", {
               defaultValue:
-                "开启后写入客户端 live config，停止或恢复时还原原文件。",
+                "选择要被 cc-switch-web 修改配置的客户端。开启后，该客户端会被写入本地代理地址；停止或恢复时会还原原配置。",
             })}
           </p>
         </div>
@@ -508,14 +513,16 @@ export function ProxySettingsSection({
               (item) => item.appType === app,
             );
             const busy = busyAction === `takeover:${app}`;
+            const testBusy = busyAction === `test:${app}`;
+            const appName = t(`apps.${app}`, { defaultValue: app });
             return (
               <div
                 key={app}
-                className="flex items-center justify-between gap-3 rounded-md border p-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-medium">
-                    {t(`apps.${app}`, { defaultValue: app })}
+                    {appName}
                     {app === "opencode" ? (
                       <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
                         {t("settings.proxy.experimental", {
@@ -530,8 +537,31 @@ export function ProxySettingsSection({
                         defaultValue: "使用当前供应商，API key 不显示",
                       })}
                   </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t(`settings.proxy.takeoverHint.${app}`, {
+                      defaultValue: `${appName} 接管：让 ${appName} 走本地代理`,
+                    })}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleTest(app)}
+                    disabled={isBusy && !testBusy}
+                    className="gap-1"
+                  >
+                    {testBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <TestTube2 className="h-3.5 w-3.5" />
+                    )}
+                    {t("settings.proxy.testApp", {
+                      defaultValue: `测试 ${appName}`,
+                      app: appName,
+                    })}
+                  </Button>
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   <Switch
                     checked={value.apps[app]?.enabled ?? false}
@@ -560,6 +590,44 @@ export function ProxySettingsSection({
         </div>
       </div>
 
+      <div className="space-y-3 rounded-md border p-3">
+        <div>
+          <h4 className="text-sm font-medium">
+            {t("settings.proxy.advanced", { defaultValue: "高级设置" })}
+          </h4>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>
+              {t("settings.proxy.bindApp", {
+                defaultValue: "默认绑定客户端",
+              })}
+            </Label>
+            <Select
+              value={value.bindApp}
+              onValueChange={(app) => update({ bindApp: app as ProxyAppId })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROXY_APPS.map((app) => (
+                  <SelectItem key={app} value={app}>
+                    {t(`apps.${app}`, { defaultValue: app })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t("settings.proxy.bindAppDescription", {
+                defaultValue:
+                  "当代理无法根据请求路径判断目标客户端时，默认按这个客户端的当前 provider 转发。普通用户一般不用改；如果你只测试某一个客户端，可以选成对应客户端。",
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {value.host.trim() === "0.0.0.0" ? (
         <p className="text-xs text-amber-600 dark:text-amber-400">
           {t("settings.proxy.publicBindWarning", {
@@ -573,7 +641,7 @@ export function ProxySettingsSection({
         <Button
           type="button"
           variant="outline"
-          onClick={handleTest}
+          onClick={() => void handleTest()}
           disabled={isBusy}
           className="gap-2"
         >
@@ -582,7 +650,10 @@ export function ProxySettingsSection({
           ) : (
             <TestTube2 className="h-4 w-4" />
           )}
-          {t("settings.proxy.test", { defaultValue: "测试配置" })}
+          {t("settings.proxy.test", {
+            defaultValue: `测试绑定客户端：${bindAppName}`,
+            app: bindAppName,
+          })}
         </Button>
         <Button
           type="button"

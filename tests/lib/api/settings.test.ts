@@ -30,7 +30,7 @@ const proxySettings: ProxySettings = {
   autoStart: false,
   enableLogging: true,
   liveTakeoverActive: false,
-  streamingFirstByteTimeout: 30,
+  streamingFirstByteTimeout: 90,
   streamingIdleTimeout: 120,
   nonStreamingTimeout: 180,
   apps: {

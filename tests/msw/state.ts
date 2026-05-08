@@ -175,7 +175,7 @@ const createDefaultProxySettings = (): ProxySettings => ({
   autoStart: false,
   enableLogging: false,
   liveTakeoverActive: false,
-  streamingFirstByteTimeout: 30,
+  streamingFirstByteTimeout: 90,
   streamingIdleTimeout: 120,
   nonStreamingTimeout: 180,
   apps: {

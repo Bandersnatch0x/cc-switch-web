@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
+    io::ErrorKind,
     net::{IpAddr, SocketAddr},
     sync::{Arc, OnceLock},
     time::{Duration, Instant},
@@ -164,6 +165,24 @@ pub(crate) fn validate_settings(settings: &ProxySettings) -> Result<(), AppError
     }
     parse_proxy_app(&settings.bind_app)?;
     Ok(())
+}
+
+fn bind_listener_error(addr: SocketAddr, err: std::io::Error) -> AppError {
+    if err.kind() == ErrorKind::AddrInUse {
+        return AppError::localized(
+            "proxy.port.in_use",
+            format!(
+                "代理端口 {} 已被占用。代理可能已在另一个 cc-switch-web 实例中运行，或有其他进程正在使用该端口；请先停止旧实例，或换一个端口。",
+                addr.port()
+            ),
+            format!(
+                "Proxy port {} is already in use. The proxy may already be running in another cc-switch-web instance, or another process is using the port; stop the old instance first or choose another port.",
+                addr.port()
+            ),
+        );
+    }
+
+    AppError::Config(format!("Failed to bind proxy listener on {addr}: {err}"))
 }
 
 fn build_client(settings: &ProxySettings) -> Result<Client, AppError> {
@@ -399,6 +418,24 @@ enum UpstreamAttemptError {
     Send(AppError),
 }
 
+struct UpstreamResponse {
+    provider: Provider,
+    response: reqwest::Response,
+}
+
+enum StreamingResponseError {
+    FirstByte(AppError),
+    Other(AppError),
+}
+
+impl StreamingResponseError {
+    fn into_app_error(self) -> AppError {
+        match self {
+            Self::FirstByte(err) | Self::Other(err) => err,
+        }
+    }
+}
+
 impl UpstreamAttemptError {
     fn into_app_error(self) -> AppError {
         match self {
@@ -444,17 +481,43 @@ async fn proxy_request(
         &app,
         &provider,
         &routed_uri,
-        reqwest_method,
-        request_headers,
-        body_bytes,
+        reqwest_method.clone(),
+        request_headers.clone(),
+        body_bytes.clone(),
         total_timeout,
     )
     .await?;
 
-    let response = if request_accepts_stream || is_streaming_response(&upstream) {
-        build_streaming_response(upstream, &state.settings).await?
+    let response = if request_accepts_stream || is_streaming_response(&upstream.response) {
+        match build_streaming_response(upstream.response, &state.settings).await {
+            Ok(response) => response,
+            Err(err @ StreamingResponseError::FirstByte(_)) => {
+                if upstream.provider.id != provider.id {
+                    return Err(err.into_app_error());
+                }
+                if let Some(response) = retry_streaming_first_byte_failover(
+                    &state,
+                    &app,
+                    &provider,
+                    &routed_uri,
+                    &reqwest_method,
+                    &request_headers,
+                    &body_bytes,
+                    total_timeout,
+                    request_started_at,
+                    request_accepts_stream,
+                )
+                .await?
+                {
+                    response
+                } else {
+                    return Err(err.into_app_error());
+                }
+            }
+            Err(err) => return Err(err.into_app_error()),
+        }
     } else {
-        build_buffered_response(upstream, total_timeout, request_started_at).await?
+        build_buffered_response(upstream.response, total_timeout, request_started_at).await?
     };
     Ok(ProxyRequestResult {
         response,
@@ -473,7 +536,7 @@ async fn send_with_failover(
     request_headers: reqwest::header::HeaderMap,
     body_bytes: Bytes,
     total_timeout: Duration,
-) -> Result<reqwest::Response, AppError> {
+) -> Result<UpstreamResponse, AppError> {
     let app_settings = proxy_app_settings(&state.settings, app);
     let failover_enabled = app_settings.auto_failover_enabled && app_settings.max_retries > 0;
     let backup = if failover_enabled {
@@ -502,9 +565,15 @@ async fn send_with_failover(
                     if !is_failover_status(response.status()) {
                         record_provider_success(&state.health, app, &backup.id).await;
                         switch_to_failover_provider(state, app, provider, backup).await?;
-                        return Ok(response);
+                        return Ok(UpstreamResponse {
+                            provider: backup.clone(),
+                            response,
+                        });
                     }
-                    return Ok(response);
+                    return Ok(UpstreamResponse {
+                        provider: backup.clone(),
+                        response,
+                    });
                 }
             }
         }
@@ -546,7 +615,10 @@ async fn send_with_failover(
                             {
                                 record_provider_success(&state.health, app, &backup.id).await;
                                 switch_to_failover_provider(state, app, provider, backup).await?;
-                                return Ok(backup_response);
+                                return Ok(UpstreamResponse {
+                                    provider: backup.clone(),
+                                    response: backup_response,
+                                });
                             }
                             Ok(_backup_response) => {
                                 record_provider_failure(
@@ -556,7 +628,10 @@ async fn send_with_failover(
                                     app_settings.max_retries,
                                 )
                                 .await;
-                                return Ok(response);
+                                return Ok(UpstreamResponse {
+                                    provider: provider.clone(),
+                                    response,
+                                });
                             }
                             Err(UpstreamAttemptError::Send(_)) => {
                                 record_provider_failure(
@@ -566,16 +641,27 @@ async fn send_with_failover(
                                     app_settings.max_retries,
                                 )
                                 .await;
-                                return Ok(response);
+                                return Ok(UpstreamResponse {
+                                    provider: provider.clone(),
+                                    response,
+                                });
                             }
-                            Err(UpstreamAttemptError::Local(_)) => return Ok(response),
+                            Err(UpstreamAttemptError::Local(_)) => {
+                                return Ok(UpstreamResponse {
+                                    provider: provider.clone(),
+                                    response,
+                                });
+                            }
                         }
                     }
                 }
             } else {
                 record_provider_success(&state.health, app, &provider.id).await;
             }
-            Ok(response)
+            Ok(UpstreamResponse {
+                provider: provider.clone(),
+                response,
+            })
         }
         Err(UpstreamAttemptError::Send(err)) => {
             if failover_enabled {
@@ -600,7 +686,10 @@ async fn send_with_failover(
                             {
                                 record_provider_success(&state.health, app, &backup.id).await;
                                 switch_to_failover_provider(state, app, provider, backup).await?;
-                                return Ok(backup_response);
+                                return Ok(UpstreamResponse {
+                                    provider: backup.clone(),
+                                    response: backup_response,
+                                });
                             }
                             Ok(_) | Err(UpstreamAttemptError::Send(_)) => {
                                 record_provider_failure(
@@ -620,6 +709,80 @@ async fn send_with_failover(
         }
         Err(err @ UpstreamAttemptError::Local(_)) => Err(err.into_app_error()),
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn retry_streaming_first_byte_failover(
+    state: &ProxyHandlerState,
+    app: &AppType,
+    failed_provider: &Provider,
+    routed_uri: &Uri,
+    method: &reqwest::Method,
+    request_headers: &reqwest::header::HeaderMap,
+    body_bytes: &Bytes,
+    total_timeout: Duration,
+    request_started_at: Instant,
+    request_accepts_stream: bool,
+) -> Result<Option<Response>, AppError> {
+    let app_settings = proxy_app_settings(&state.settings, app);
+    if !app_settings.auto_failover_enabled || app_settings.max_retries == 0 {
+        return Ok(None);
+    }
+
+    record_provider_failure(
+        &state.health,
+        app,
+        &failed_provider.id,
+        app_settings.max_retries,
+    )
+    .await;
+
+    let Some(backup) = backup_provider(&state.app_state, app, &failed_provider.id)? else {
+        return Ok(None);
+    };
+    if !provider_circuit_allows_request(&state.health, app, &backup.id).await {
+        return Ok(None);
+    }
+
+    let backup_result = send_upstream_provider(
+        state,
+        app,
+        &backup,
+        routed_uri,
+        method,
+        request_headers,
+        body_bytes,
+        total_timeout,
+    )
+    .await;
+
+    let backup_response = match backup_result {
+        Ok(response) if !is_failover_status(response.status()) => response,
+        Ok(_) | Err(UpstreamAttemptError::Send(_)) => {
+            record_provider_failure(&state.health, app, &backup.id, app_settings.max_retries).await;
+            return Ok(None);
+        }
+        Err(UpstreamAttemptError::Local(_)) => return Ok(None),
+    };
+
+    let should_stream = request_accepts_stream || is_streaming_response(&backup_response);
+    let response = if should_stream {
+        match build_streaming_response(backup_response, &state.settings).await {
+            Ok(response) => response,
+            Err(StreamingResponseError::FirstByte(_)) => {
+                record_provider_failure(&state.health, app, &backup.id, app_settings.max_retries)
+                    .await;
+                return Ok(None);
+            }
+            Err(err) => return Err(err.into_app_error()),
+        }
+    } else {
+        build_buffered_response(backup_response, total_timeout, request_started_at).await?
+    };
+
+    record_provider_success(&state.health, app, &backup.id).await;
+    switch_to_failover_provider(state, app, failed_provider, &backup).await?;
+    Ok(Some(response))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -808,7 +971,7 @@ async fn build_buffered_response(
 async fn build_streaming_response(
     upstream: reqwest::Response,
     settings: &ProxySettings,
-) -> Result<Response, AppError> {
+) -> Result<Response, StreamingResponseError> {
     let status =
         StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
     let mut builder = Response::builder().status(status);
@@ -831,17 +994,20 @@ async fn build_streaming_response(
         upstream_stream.next(),
         "Proxy streaming first byte timed out",
     )
-    .await?;
+    .await
+    .map_err(StreamingResponseError::FirstByte)?;
 
     let Some(first) = first else {
-        return builder
-            .body(Body::empty())
-            .map_err(|e| AppError::Config(format!("Failed to build proxy response: {e}")));
+        return builder.body(Body::empty()).map_err(|e| {
+            StreamingResponseError::Other(AppError::Config(format!(
+                "Failed to build proxy response: {e}"
+            )))
+        });
     };
     let first = first.map_err(|e| {
-        AppError::Config(format!(
+        StreamingResponseError::FirstByte(AppError::Config(format!(
             "Failed to read first upstream streaming chunk: {e}"
-        ))
+        )))
     })?;
 
     let rest = stream::unfold(upstream_stream, move |mut stream| {
@@ -866,9 +1032,11 @@ async fn build_streaming_response(
     });
     let body_stream = stream::once(async move { Ok::<Bytes, std::io::Error>(first) }).chain(rest);
 
-    builder
-        .body(Body::from_stream(body_stream))
-        .map_err(|e| AppError::Config(format!("Failed to build proxy response: {e}")))
+    builder.body(Body::from_stream(body_stream)).map_err(|e| {
+        StreamingResponseError::Other(AppError::Config(format!(
+            "Failed to build proxy response: {e}"
+        )))
+    })
 }
 
 pub async fn start_proxy(
@@ -882,11 +1050,20 @@ pub async fn start_proxy(
         .map_err(|e| AppError::InvalidInput(format!("Invalid proxy listen address: {e}")))?;
 
     let rt = runtime();
+    let already_running_here = {
+        let guard = rt.handle.lock().await;
+        guard.as_ref().is_some_and(|handle| {
+            handle.address == addr.ip().to_string() && handle.port == addr.port()
+        })
+    };
+    if already_running_here {
+        return Ok(status_with_state(Some(&state)).await);
+    }
     stop_proxy().await?;
 
     let listener = TcpListener::bind(addr)
         .await
-        .map_err(|e| AppError::Config(format!("Failed to bind proxy listener: {e}")))?;
+        .map_err(|e| bind_listener_error(addr, e))?;
     let actual_addr = listener
         .local_addr()
         .map_err(|e| AppError::Config(format!("Failed to read proxy listener address: {e}")))?;
@@ -1150,4 +1327,17 @@ fn truncate_for_log(value: &str, limit: usize) -> String {
         end -= 1;
     }
     format!("{}...", &value[..end])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{takeover_apps, AppType, ProxySettings};
+
+    #[test]
+    fn takeover_apps_does_not_duplicate_claude() {
+        let mut settings = ProxySettings::default();
+        settings.apps.claude.enabled = true;
+
+        assert_eq!(takeover_apps(&settings), vec![AppType::Claude]);
+    }
 }

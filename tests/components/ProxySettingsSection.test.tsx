@@ -27,6 +27,7 @@ const settingsApiMock = vi.hoisted(() => ({
 
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
+  info: vi.fn(),
   error: vi.fn(),
 }));
 
@@ -72,7 +73,7 @@ const createSettings = (
   autoStart: false,
   enableLogging: false,
   liveTakeoverActive: false,
-  streamingFirstByteTimeout: 30,
+  streamingFirstByteTimeout: 90,
   streamingIdleTimeout: 120,
   nonStreamingTimeout: 180,
   apps: {
@@ -195,6 +196,7 @@ beforeEach(() => {
   settingsApiMock.restoreProxy.mockResolvedValue(createStatus());
   settingsApiMock.getProxyRecentLogs.mockClear();
   toastMock.success.mockClear();
+  toastMock.info.mockClear();
   toastMock.error.mockClear();
 });
 
@@ -268,6 +270,9 @@ describe("ProxySettingsSection", () => {
     expect(getAppCard("Codex")).toBeInTheDocument();
     expect(getAppCard("Gemini")).toBeInTheDocument();
     expect(getAppCard("OpenCode")).toBeInTheDocument();
+    expect(screen.getByText(/选择要被 cc-switch-web 修改配置/)).toBeInTheDocument();
+    expect(screen.getByText("Claude 接管：让 Claude 走本地代理")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "测试 Claude" })).toBeInTheDocument();
     expect(screen.getByText("实验性")).toBeInTheDocument();
     expect(screen.getByText("OMO")).toBeInTheDocument();
     expect(screen.getByText("暂不支持代理接管")).toBeInTheDocument();
@@ -315,6 +320,18 @@ describe("ProxySettingsSection", () => {
     );
   });
 
+  it("refreshes status instead of starting again when proxy is already running", async () => {
+    settingsApiMock.getProxyStatus.mockResolvedValue(createStatus({ running: true }));
+    renderSection();
+    await waitForInitialStatus();
+
+    clickButton("启动代理");
+
+    await waitFor(() => expect(toastMock.info).toHaveBeenCalled());
+    expect(settingsApiMock.startProxy).not.toHaveBeenCalled();
+    expect(settingsApiMock.getProxyStatus).toHaveBeenCalledTimes(2);
+  });
+
   it("stops proxy successfully", async () => {
     settingsApiMock.getProxyStatus.mockResolvedValueOnce(
       createStatus({ running: true }),
@@ -350,12 +367,33 @@ describe("ProxySettingsSection", () => {
     renderSection();
     await waitForInitialStatus();
 
-    clickButton("测试配置");
+    clickButton("测试绑定客户端：Claude");
 
     await waitFor(() =>
       expect(settingsApiMock.testProxy).toHaveBeenCalledWith(
-        expect.objectContaining({ host: "127.0.0.1", port: 3456 }),
+        expect.objectContaining({
+          host: "127.0.0.1",
+          port: 3456,
+          bindApp: "claude",
+        }),
       ),
+    );
+    expect(toastMock.success).toHaveBeenCalled();
+  });
+
+  it("tests a specific takeover app without changing the default bind app", async () => {
+    const { onChangeSpy } = renderSection(createSettings({ bindApp: "codex" }));
+    await waitForInitialStatus();
+
+    clickButton("测试 Gemini");
+
+    await waitFor(() =>
+      expect(settingsApiMock.testProxy).toHaveBeenCalledWith(
+        expect.objectContaining({ bindApp: "gemini" }),
+      ),
+    );
+    expect(onChangeSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ bindApp: "gemini" }),
     );
     expect(toastMock.success).toHaveBeenCalled();
   });
@@ -365,7 +403,7 @@ describe("ProxySettingsSection", () => {
     renderSection();
     await waitForInitialStatus();
 
-    clickButton("测试配置");
+    clickButton("测试绑定客户端：Claude");
 
     await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
     expect(settingsApiMock.testProxy).toHaveBeenCalledTimes(1);
@@ -513,7 +551,7 @@ describe("ProxySettingsSection", () => {
     clickButton("启动代理");
 
     await waitFor(() => expect(getButton("启动代理")).toBeDisabled());
-    expect(getButton("测试配置")).toBeDisabled();
+    expect(getButton("测试绑定客户端：Claude")).toBeDisabled();
     expect(getButton("停止代理")).toBeDisabled();
     expect(getButton("恢复接管")).toBeDisabled();
     expect(getAppSwitch("Codex")).toBeDisabled();

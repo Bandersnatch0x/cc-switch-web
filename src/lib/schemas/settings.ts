@@ -47,7 +47,7 @@ export const settingsSchema = z.object({
       autoStart: z.boolean(),
       enableLogging: z.boolean().default(false),
       liveTakeoverActive: z.boolean().default(false),
-      streamingFirstByteTimeout: z.number().int().min(1).max(3600).default(30),
+      streamingFirstByteTimeout: z.number().int().min(1).max(3600).default(90),
       streamingIdleTimeout: z.number().int().min(1).max(3600).default(120),
       nonStreamingTimeout: z.number().int().min(1).max(3600).default(180),
       apps: z

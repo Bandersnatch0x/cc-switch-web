@@ -213,7 +213,7 @@ fn default_proxy_bind_app() -> String {
 }
 
 fn default_streaming_first_byte_timeout() -> u64 {
-    30
+    90
 }
 
 fn default_streaming_idle_timeout() -> u64 {
