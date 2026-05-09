@@ -13,6 +13,7 @@ import type {
   ProxyRecentLog,
   ProxySettings,
   ProxyStatus,
+  ProxyTakeoverResult,
 } from "@/types";
 
 const settingsApiMock = vi.hoisted(() => ({
@@ -270,9 +271,15 @@ describe("ProxySettingsSection", () => {
     expect(getAppCard("Codex")).toBeInTheDocument();
     expect(getAppCard("Gemini")).toBeInTheDocument();
     expect(getAppCard("OpenCode")).toBeInTheDocument();
-    expect(screen.getByText(/选择要被 cc-switch-web 修改配置/)).toBeInTheDocument();
-    expect(screen.getByText("Claude 接管：让 Claude 走本地代理")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "测试 Claude" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/选择要被 cc-switch-web 修改配置/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Claude 接管：让 Claude 走本地代理"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "测试 Claude" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("实验性")).toBeInTheDocument();
     expect(screen.getByText("OMO")).toBeInTheDocument();
     expect(screen.getByText("暂不支持代理接管")).toBeInTheDocument();
@@ -321,7 +328,9 @@ describe("ProxySettingsSection", () => {
   });
 
   it("refreshes status instead of starting again when proxy is already running", async () => {
-    settingsApiMock.getProxyStatus.mockResolvedValue(createStatus({ running: true }));
+    settingsApiMock.getProxyStatus.mockResolvedValue(
+      createStatus({ running: true }),
+    );
     renderSection();
     await waitForInitialStatus();
 
@@ -430,6 +439,46 @@ describe("ProxySettingsSection", () => {
         "claude",
         false,
       ),
+    );
+  });
+
+  it("dedupes takeover requests and uses a stable short-lived toast", async () => {
+    let resolveTakeover: (result: ProxyTakeoverResult) => void = () => {};
+    settingsApiMock.setProxyTakeover.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveTakeover = resolve;
+      }),
+    );
+    renderSection();
+    await waitForInitialStatus();
+
+    const claudeSwitch = getAppSwitch("Claude");
+    fireEvent.click(claudeSwitch);
+    fireEvent.click(claudeSwitch);
+
+    expect(settingsApiMock.setProxyTakeover).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(claudeSwitch).toBeDisabled());
+
+    resolveTakeover({
+      app: "claude",
+      enabled: true,
+      status: createStatus({
+        takeover: {
+          claude: true,
+          codex: false,
+          gemini: false,
+          opencode: false,
+          omo: false,
+        },
+      }),
+    });
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("接管已开启", {
+        description: "Claude",
+        duration: 1800,
+        id: "proxy-takeover-claude",
+      }),
     );
   });
 

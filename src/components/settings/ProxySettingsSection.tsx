@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -30,6 +30,7 @@ import type {
 } from "@/types";
 
 const PROXY_APPS: ProxyAppId[] = ["claude", "codex", "gemini", "opencode"];
+const PROXY_TOAST_DURATION = 1800;
 
 interface ProxySettingsSectionProps {
   value: ProxySettings;
@@ -55,6 +56,7 @@ export function ProxySettingsSection({
     | `takeover:${ProxyAppId}`
     | null
   >(null);
+  const takeoverInFlightRef = useRef<Set<ProxyAppId>>(new Set());
 
   const listenUrl = useMemo(() => {
     if (status?.listenUrl) return status.listenUrl;
@@ -152,6 +154,7 @@ export function ProxySettingsSection({
         t("settings.proxy.alreadyRunning", {
           defaultValue: "代理已在运行",
         }),
+        { id: "proxy-start", duration: PROXY_TOAST_DURATION },
       );
       return;
     }
@@ -165,6 +168,7 @@ export function ProxySettingsSection({
       setStatus(nextStatus);
       toast.success(
         t("settings.proxy.started", { defaultValue: "代理已启动" }),
+        { id: "proxy-start", duration: PROXY_TOAST_DURATION },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -185,6 +189,7 @@ export function ProxySettingsSection({
       setStatus(nextStatus);
       toast.success(
         t("settings.proxy.stopped", { defaultValue: "代理已停止" }),
+        { id: "proxy-stop", duration: PROXY_TOAST_DURATION },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -214,6 +219,7 @@ export function ProxySettingsSection({
       setStatus(nextStatus);
       toast.success(
         t("settings.proxy.restored", { defaultValue: "接管配置已恢复" }),
+        { id: "proxy-restore", duration: PROXY_TOAST_DURATION },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -229,6 +235,11 @@ export function ProxySettingsSection({
   };
 
   const handleTakeoverChange = async (app: ProxyAppId, enabled: boolean) => {
+    if (takeoverInFlightRef.current.has(app)) return;
+    const currentEnabled = value.apps[app]?.enabled ?? false;
+    if (currentEnabled === enabled) return;
+
+    takeoverInFlightRef.current.add(app);
     updateApp(app, { enabled });
     setBusyAction(`takeover:${app}`);
     try {
@@ -242,7 +253,11 @@ export function ProxySettingsSection({
           : t("settings.proxy.takeoverDisabled", {
               defaultValue: "接管已关闭",
             }),
-        { description: t(`apps.${app}`, { defaultValue: app }) },
+        {
+          id: `proxy-takeover-${app}`,
+          duration: PROXY_TOAST_DURATION,
+          description: t(`apps.${app}`, { defaultValue: app }),
+        },
       );
     } catch (error) {
       updateApp(app, { enabled: !enabled });
@@ -254,6 +269,7 @@ export function ProxySettingsSection({
         { description: message },
       );
     } finally {
+      takeoverInFlightRef.current.delete(app);
       setBusyAction(null);
     }
   };
@@ -568,7 +584,7 @@ export function ProxySettingsSection({
                     onCheckedChange={(checked) =>
                       void handleTakeoverChange(app, checked)
                     }
-                    disabled={isBusy && !busy}
+                    disabled={isBusy}
                   />
                 </div>
               </div>
