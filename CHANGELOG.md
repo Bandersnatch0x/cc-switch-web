@@ -5,6 +5,30 @@ All notable changes to CC Switch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0-rc.2] - 2026-05-09
+
+### Fixes / 修复
+
+- Harden proxy startup UX so repeated starts refresh status and show a friendly "already running" message instead of rebinding the same host and port
+- Show a clearer error when the configured proxy port is already occupied by another process
+- Prevent duplicate Claude entries in active proxy takeover targets
+- Allow first-byte streaming timeout failover before any response body has been sent
+- Prevent repeated proxy takeover requests when takeover switches are toggled quickly
+- Disable takeover switches while a takeover request is in progress
+- Deduplicate proxy start, stop, restore, and takeover success toasts with stable toast IDs and short display duration
+
+### UX / 体验
+
+- Clarify that "application takeover" modifies local client configuration and restores it on stop or restore
+- Clarify that the default bound client is only a fallback when the proxy cannot infer request ownership
+- Add per-client proxy test buttons such as "Test Claude" and "Test Codex"
+- Increase the default first-byte timeout from 30 seconds to 90 seconds for real upstream environments
+
+### Tests / 测试
+
+- Add proxy takeover UI regression coverage for duplicate request prevention and stable short-lived toasts
+- Validate the RC2 changes with `pnpm typecheck`, targeted proxy settings tests, and the full Vitest suite
+
 ## [0.11.0-rc.1] - 2026-05-07
 
 ### Features / 新特性
