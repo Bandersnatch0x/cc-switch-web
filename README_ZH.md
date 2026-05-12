@@ -1,90 +1,55 @@
 # cc-switch-web
 
-> 面向 Claude Code、Codex、Gemini CLI、OpenCode 与 OMO 的 Web 版 CC Switch。
+> 面向 Claude Code、Codex、Gemini CLI、OpenCode、OMO 与 Hermes Agent 的 Web 版 CC Switch。
 
-<sub>🙏 本项目是 [farion1231/cc-switch](https://github.com/farion1231/cc-switch)（Jason Young）的 fork 版本。感谢原作者的出色工作。本 fork 添加了 Web 服务器模式，支持云端/无头部署。</sub>
+<sub>🙏 本项目是 [farion1231/cc-switch](https://github.com/farion1231/cc-switch)（Jason Young）的 fork 版本。感谢原作者的出色工作。本 fork 添加了 Web 服务器模式、Hermes Agent 集成、Token Plan 模板与远程终端。</sub>
 
-[![Release](https://img.shields.io/github/v/release/Laliet/cc-switch-web?style=flat-square&logo=github&label=Release)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![License](https://img.shields.io/github/license/Laliet/cc-switch-web?style=flat-square)](LICENSE)
-[![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/Laliet/cc-switch-web/pkgs/container/cc-switch-web)
+[![Release](https://img.shields.io/github/v/release/Bandersnatch0x/cc-switch-web?style=flat-square&logo=github&label=Release)](https://github.com/Bandersnatch0x/cc-switch-web/releases/latest)
+[![License](https://img.shields.io/github/license/Bandersnatch0x/cc-switch-web?style=flat-square)](LICENSE)
 
-**面向 Claude Code / Codex / Gemini CLI / OpenCode / OMO 的跨平台 Web 版一站式助手**
+**面向 Claude Code / Codex / Gemini CLI / OpenCode / OMO / Hermes Agent 的跨平台 Web 版一站式助手**
 
 [English](README.md) | 中文 | [法律声明](LEGAL_NOTICE.md) | [更新日志](CHANGELOG.md)
-
-> 当前推荐稳定版本：[v0.10.1](https://github.com/Laliet/cc-switch-web/releases/tag/v0.10.1)  
-> `v0.10.1` 当前为正式稳定版本
 
 ---
 
 ## 项目简介
 
-**cc-switch-web** 是一个面向 **Claude Code**、**Codex**、**Gemini CLI**、**OpenCode** 和 **oh-my-opencode（OMO）** 的跨平台 Web 版 **CC Switch**。它支持供应商切换、MCP 管理、技能安装、系统提示词编辑，并可同时运行在桌面环境与无头云端环境中。
+**cc-switch-web** 是一个面向 **Claude Code**、**Codex**、**Gemini CLI**、**OpenCode**、**oh-my-opencode（OMO）** 和 **Hermes Agent** 的跨平台 Web 版 **CC Switch**。它支持供应商切换、MCP 管理、技能安装、系统提示词编辑，并可同时运行在桌面环境与无头云端环境中。
 
-无论你是在本地开发还是在无图形界面的云端环境，cc-switch-web 都能提供流畅的体验：
+核心功能：
 
 - **一键切换供应商** — 支持 OpenAI 兼容 API 端点
-- **统一 MCP 管理** — 跨 Claude/Codex/Gemini/OpenCode 统一管理
+- **统一 MCP 管理** — 跨 Claude/Codex/Gemini/OpenCode/Hermes 统一管理
 - **技能市场** — 从 GitHub 浏览并安装 Claude 技能
 - **提示词编辑器** — 内置语法高亮
 - **配置备份/恢复** — 支持版本历史
 - **Web 服务器模式** — 支持 Basic Auth，适用于云端/无头部署
+- **Hermes Agent 集成** — 自动轮换、Token Plan 模板、远程终端
 
 ---
 
 ## 更新内容
 
+### v1.0.0 — Hermes Agent 与远程终端
+
+- **Hermes Agent 支持**：完整集成作为托管应用，支持供应商切换、目录设置和能力标志
+- **Token Plan 模板**：一键配置 Kimi、Zhipu、MiniMax（通过 Anthropic 兼容端点）
+- **AgentSidebar**：新侧边栏布局，插件模式过滤（仅显示 Hermes）
+- **RemoteTerminal**：内置 xterm.js 终端，WebSocket PTY 二进制协议
+- **自动轮换后端**：Hermes 轮换任务随 web server 自动启动
+- **i18n 审计**：补充 88 个缺失的翻译 key（en.json + zh.json）
+
 ### v0.11.0-rc.2 - 预发布
 
-- 新增 Web/headless 本地 HTTP 转发代理 v1，支持设置页启动、停止、状态查看、测试与自动启动
-- 根据真实服务器测试反馈强化代理启动与应用接管体验
-- 防止接管请求重复触发，并修复接管成功提示重复堆叠或看起来消不掉的问题
-- 修复 Claude provider JSON 格式化丢失 `env` 外层的问题
-- 修复 Anthropic Skills 默认仓库扫描路径，避免安装到 `skills/skills/*`
-- 改进 OMO 下 MCP / Skills 入口与说明，Skills 明确复用 OpenCode 存储
-- 更新说明：[v0.11.0-rc.2](docs/release-note-v0.11.0-rc.2-zh.md)
+- 新增 Web/headless 本地 HTTP 转发代理 v1
+- 强化代理启动与应用接管体验
+- 修复 Claude provider JSON 格式化问题
+- 修复 Anthropic Skills 默认仓库扫描路径
 
-### v0.10.1 - 当前稳定版
+### v0.10.1 - 稳定版
 
-- 适合日常使用与生产环境
-- 稳定版下载地址：[v0.10.1](https://github.com/Laliet/cc-switch-web/releases/tag/v0.10.1)
-
-### v0.10.0 - 预发布里程碑
-
-- 新增 OpenCode 供应商管理与自动写入 OpenCode 配置
-- 新增 oh-my-opencode（OMO）配置管理与插件联动支持
-- 支持在设置页直接修改 Web 模式登录用户名和密码
-- 改进 OMO / OpenCode 联动写入与当前供应商编辑时的回滚安全性
-- `v0.10.0` 是本发布线在正式稳定前使用的验证预发布版本
-
-### v0.8.0 - 之前的稳定基线
-
-- Web 模式默认同源 CORS
-- 支持通过 `ALLOW_LAN_CORS=1` / `CC_SWITCH_LAN_CORS=1` 放行私有局域网来源
-- 云端部署默认策略更安全
-
-## 界面展示
-
-![主界面](pic/界面展示.png)
-_主界面_
-
-![提示词管理](pic/提示词管理展示.png)
-_提示词管理_
-
-![MCP服务器管理](pic/MCP服务器管理展示.png)
-_MCP服务器管理_
-
-![技能商店](pic/skills商店管理展示.png)
-_技能商店_
-
-![扩展供应商列表](pic/扩展的中转服务商列表.png)
-_扩展供应商列表_
-
-![配置供应商](pic/配置中转服务商展示.png)
-_配置供应商_
+- 推荐用于日常使用和生产环境
 
 ---
 
@@ -93,15 +58,17 @@ _配置供应商_
 ### 核心功能
 
 - **多供应商管理**：一键切换不同 AI 供应商（OpenAI 兼容端点）
-- **统一 MCP 管理**：跨 Claude/Codex/Gemini/OpenCode 配置 Model Context Protocol 服务器
-- **技能市场**：从 GitHub 仓库浏览并安装 Claude 技能
-- **提示词管理**：内置 CodeMirror 编辑器创建和管理系统提示词
+- **统一 MCP 管理**：跨应用配置 Model Context Protocol 服务器
+- **技能市场**：浏览并安装 Claude 技能
+- **提示词管理**：创建和管理系统提示词
+- **远程终端**：内置 xterm.js 终端，通过 WebSocket PTY 直接访问服务器 shell
 
 ### 扩展功能
 
-- **备用供应商自动切换**：主供应商失败时自动切换到备用
-- **导入/导出**：备份和恢复所有配置，支持版本历史
-- **跨平台**：支持 Windows、macOS、Linux（桌面版）和 Web/Docker（服务器版）
+- **备份自动故障转移**：主供应商故障时自动切换
+- **Hermes 自动轮换**：可配置计划的自动供应商轮换
+- **导入/导出**：配置备份与恢复
+- **跨平台**：支持 Windows、macOS、Linux（桌面）和 Web/Docker（服务器）
 
 ---
 
@@ -109,80 +76,27 @@ _配置供应商_
 
 ### 方式一：Web 服务器模式（推荐）
 
-推荐优先使用 Web 服务器模式，尤其适合云端/无头部署与远程访问。
-
-轻量级 Web 服务器，适用于无图形界面的服务器环境。通过浏览器访问，无需 GUI 依赖。
+适用于无头/云端部署的轻量级 Web 服务器。
 
 #### 方法 A：预编译二进制（推荐）
 
-下载预编译的服务器二进制，无需编译：
-
-| 架构                      | 下载链接                                                                                                                          |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Linux x86_64 (glibc)**  | [cc-switch-server-linux-x86_64](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/cc-switch-server-linux-x86_64)   |
-| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/cc-switch-server-linux-aarch64) |
-
-> **glibc 说明**：预编译二进制基于 Ubuntu 22.04 构建。  
-> 如果报 `GLIBC_2.xx not found`，请改用 Docker 或源码构建。  
-> 可用 `ldd --version` 查看 glibc 版本。
-
-**一键部署**：
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
+curl -fsSL https://raw.githubusercontent.com/Bandersnatch0x/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
 ```
 
-**常见问题速查**：
-
-- 报 `GLIBC_2.xx not found`：建议使用 Docker（`ghcr.io/laliet/cc-switch-web:latest`）或源码构建。
-- 想直接容器化运行：使用 `docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest`。
-- Windows + WSL 共用配置：设置页支持一键填充 WSL 模板路径（高级设置页中的“填充 WSL 模板路径”）。
-
-**高级选项**：
+#### 方法 B：Docker
 
 ```bash
-# 自定义安装目录和端口
-INSTALL_DIR=/opt/cc-switch PORT=8080 curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
-
-# 创建 systemd 服务（开机自启）
-CREATE_SERVICE=1 curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
+docker run -p 3000:3000 ghcr.io/bandersnatch0x/cc-switch-web:latest
 ```
 
-#### 方法 B：Docker 容器
-
-Docker 镜像发布到 GitHub Container Registry (ghcr.io)：
+#### 方法 C：从源码构建
 
 ```bash
-docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest
-```
-
-> ⚠️ **注意**：Docker 镜像名必须**全小写**（`laliet`，不是 `Laliet`）
-
-**Docker 高级选项**：
-
-```bash
-# 使用部署脚本（自定义端口/版本/数据目录、可后台运行）
-./scripts/docker-deploy.sh -p 8080 --data-dir /opt/cc-switch-data -d
-
-# 本地构建镜像（可选）
-docker build -t cc-switch-web .
-docker run -p 3000:3000 cc-switch-web
-```
-
-#### 方法 C：源码构建
-
-依赖：`libssl-dev`、`pkg-config`、Rust 1.78+、pnpm（无需 WebKit/GTK）
-
-```bash
-# 1. 克隆并安装依赖
-git clone https://github.com/Laliet/cc-switch-web.git
+git clone https://github.com/Bandersnatch0x/cc-switch-web.git
 cd cc-switch-web
 pnpm install
-
-# 2. 构建 Web 资源
 pnpm build:web
-
-# 3. 构建并运行服务器
 cd src-tauri
 cargo build --release --features web-server --example server
 HOST=0.0.0.0 PORT=3000 ./target/release/examples/server
@@ -191,82 +105,20 @@ HOST=0.0.0.0 PORT=3000 ./target/release/examples/server
 ### Web 服务器登录
 
 - **用户名**：`admin`
-- **密码**：首次运行自动生成，保存在 `~/.cc-switch/web_password`
-- **跨域设置**：默认同源；需跨域请设置 `CORS_ALLOW_ORIGINS=https://your-domain.com`（`CORS_ALLOW_ORIGINS="*"` 会被忽略）；局域网/私有来源可通过 `ALLOW_LAN_CORS=1`（或 `CC_SWITCH_LAN_CORS=1`）自动放行
-- **注意**：Web 模式不支持原生文件选择器，请手动输入路径
+- **密码**：首次运行时自动生成，存储在 `~/.cc-switch/web_password`
 
 ### 安全
 
-**认证**：
-
-- 所有 API 请求都需要 Basic Auth
-- 浏览器会弹出用户名/密码提示
-- 对非 GET 请求会自动注入并校验 CSRF Token
-
-**安全响应头**：
-
-- 默认启用 HSTS（HTTP Strict Transport Security）
-- X-Frame-Options: DENY（防止点击劫持）
-- X-Content-Type-Options: nosniff
-- Referrer-Policy: no-referrer
-
-**最佳实践**：
-
-- 生产环境建议在反向代理后部署，并启用 TLS
-- 仅在充分理解风险的情况下设置 `ALLOW_HTTP_BASIC_OVER_HTTP=1` 以抑制 HTTP 警告
-- 请妥善保护 `~/.cc-switch/web_password` 文件（权限建议 0600）
-
-**环境变量**：
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `PORT` | 服务端口 | 3000 |
-| `HOST` | 监听地址 | 127.0.0.1 |
-| `ENABLE_HSTS` | 是否启用 HSTS 响应头 | true |
-| `CORS_ALLOW_ORIGINS` | 允许的来源（逗号分隔） | （同源） |
-| `CORS_ALLOW_CREDENTIALS` | 是否允许 CORS 携带凭据 | false |
-| `ALLOW_LAN_CORS` | 自动放行局域网私有来源 | false |
-| `CC_SWITCH_LAN_CORS` | 局域网自动放行启用时自动写入 | （未设置） |
-| `ALLOW_HTTP_BASIC_OVER_HTTP` | 抑制 HTTP 警告 | false |
-| `WEB_CSRF_TOKEN` | 覆盖 CSRF Token | （自动生成） |
+- 所有 API 请求需要 Basic Auth
+- CSRF token 自动注入和验证
+- 生产环境建议部署在反向代理后并使用 TLS
 
 ### 方式二：桌面应用（GUI）
 
-功能完整的桌面应用，带图形界面，基于 Tauri 构建。
-
-| 平台        | 下载链接                                                                                                                                        | 说明                                |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| **Windows** | [CC-Switch-v0.10.1-Windows.msi](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Windows.msi)                   | 安装版（当前稳定版）                |
-|             | [CC-Switch-v0.10.1-Windows-Portable.zip](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Windows-Portable.zip) | 绿色版（免安装）                    |
-| **macOS**   | [CC-Switch-v0.10.1-macOS.zip](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-macOS.zip)                       | 通用二进制（Intel + Apple Silicon） |
-| **Linux**   | [CC-Switch-v0.10.1-Linux.AppImage](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Linux.AppImage)             | AppImage（当前稳定版）              |
-|             | [CC-Switch-v0.10.1-Linux.deb](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Linux.deb)                       | Debian/Ubuntu 包                    |
-
-**macOS 提示**：如遇"已损坏"警告，在终端执行：`xattr -cr "/Applications/CC Switch.app"`
-
-**Linux AppImage**：先添加执行权限：`chmod +x CC-Switch-*.AppImage`
-
-**Linux 一键安装**（推荐）：
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/install.sh | bash
-```
-
-该脚本会：
-
-- 自动检测系统架构（x86_64/aarch64）
-- 下载最新版 AppImage
-- 校验 SHA256（如有校验文件）
-- 安装到 `~/.local/bin/ccswitch`（普通用户）或 `/usr/local/bin/ccswitch`（root）
-- 创建桌面快捷方式和应用图标
-
-**高级选项**：
-
-```bash
-# 安装当前稳定版本
-VERSION=v0.10.1 curl -fsSL https://...install.sh | bash
-
-# 跳过校验
-NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
+pnpm install
+pnpm tauri dev    # 开发模式
+pnpm tauri build  # 构建
 ```
 
 ---
@@ -275,57 +127,51 @@ NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
 
 ### 1. 添加供应商
 
-1. 启动 CC-Switch，选择目标应用（Claude Code / Codex / Gemini / OpenCode / OMO）
-2. 点击 **"添加供应商"** 按钮
-3. 选择预设（如 OpenRouter、DeepSeek、智谱 GLM）或选择"自定义"
-4. 填写配置：
-   - **名称**：供应商显示名称
-   - **Base URL**：API 端点（如 `https://api.openrouter.ai/v1`）
-   - **API Key**：该供应商的 API 密钥
-   - **模型**（可选）：指定使用的模型
-5. 点击 **保存**
+1. 选择目标应用（Claude Code / Codex / Gemini / OpenCode / OMO / Hermes）
+2. 点击 **"添加供应商"**
+3. 选择预设或"自定义"
+4. 填写：名称、Base URL、API Key、模型
 
 ### 2. 切换供应商
 
-- 点击任意供应商卡片上的 **"启用"** 按钮即可激活
-- 激活的供应商配置会立即写入 CLI 配置文件
-- 使用系统托盘菜单可快速切换，无需打开应用窗口
+- 点击供应商卡片上的 **"启用"** 按钮
+- 活动供应商会立即写入 CLI 配置文件
 
 ### 3. 管理 MCP 服务器
 
-1. 进入 **MCP** 标签页
-2. 点击 **"添加服务器"** 配置新的 MCP 服务器
+1. 进入 **MCP** 标签
+2. 点击 **"添加服务器"**
 3. 选择传输类型：`stdio`、`http` 或 `sse`
-4. 对于 stdio 服务器，提供命令和参数
-5. 使用开关启用/禁用服务器
 
-### 4. 安装技能（仅 Claude）
+### 4. 安装技能
 
-1. 进入 **技能** 标签页
-2. 浏览已配置仓库中的可用技能
-3. 点击 **"安装"** 将技能添加到 `~/.claude/skills/`
-4. 管理已安装的技能，可添加自定义仓库
+1. 进入 **Skills** 标签
+2. 浏览可用技能
+3. 点击 **"安装"**
 
-### 5. 系统提示词
+### 5. Hermes Token Plan
 
-1. 进入 **提示词** 标签页
-2. 创建新提示词或编辑现有提示词
-3. 启用提示词后会写入对应 CLI 的提示词文件：
-   - Claude: `~/.claude/CLAUDE.md`
-   - Codex: `~/.codex/AGENTS.md`
-   - Gemini: `~/.gemini/GEMINI.md`
+1. 进入 **Hermes** 标签 → **Token Plan**
+2. 选择预设模板（Kimi / Zhipu / MiniMax）
+3. API key 和 base URL 自动填充
+4. 按需启用自动轮换
+
+### 6. 远程终端
+
+1. 点击侧边栏终端图标
+2. xterm.js 终端在对话框中打开
+3. 通过 WebSocket PTY 二进制协议连接到服务器 shell
 
 ---
 
 ## 配置文件
 
-CC-Switch 管理以下配置文件：
-
-| 应用            | 配置文件                                           |
-| --------------- | -------------------------------------------------- |
-| **Claude Code** | `~/.claude.json`（MCP）、`~/.claude/settings.json` |
-| **Codex**       | `~/.codex/auth.json`、`~/.codex/config.toml`       |
-| **Gemini**      | `~/.gemini/.env`、`~/.gemini/settings.json`        |
+| 应用 | 配置文件 |
+|------|----------|
+| **Claude Code** | `~/.claude.json` (MCP), `~/.claude/settings.json` |
+| **Codex** | `~/.codex/auth.json`, `~/.codex/config.toml` |
+| **Gemini** | `~/.gemini/.env`, `~/.gemini/settings.json` |
+| **Hermes** | `~/.hermes/config.json` |
 
 CC-Switch 自身配置：`~/.cc-switch/config.json`
 
@@ -334,62 +180,35 @@ CC-Switch 自身配置：`~/.cc-switch/config.json`
 ## 开发
 
 ```bash
-# 安装依赖
-pnpm install
-
-# 开发模式运行桌面应用
-pnpm tauri dev
-
-# 仅运行前端开发服务器
-pnpm dev:renderer
-
-# 构建桌面应用
-pnpm tauri build
-
-# 仅构建 Web 资源
-pnpm build:web
-
-# 运行测试
-pnpm test:unit
+pnpm install          # 安装依赖
+pnpm tauri dev        # 桌面开发模式
+pnpm dev:renderer     # 前端开发服务器
+pnpm build:web        # 构建 Web 资源
+npx tsc --noEmit      # 类型检查
+pnpm test:unit        # 运行测试
 ```
 
 ---
 
 ## 技术栈
 
-- **前端**：React 18、TypeScript、Vite、Tailwind CSS、TanStack Query、Radix UI、CodeMirror
-- **后端**：Rust、Tauri 2.x、Axum（Web 服务器模式）、tower-http
-- **工具链**：pnpm、Vitest、MSW
+- **前端**：React 18、TypeScript、Vite、Tailwind CSS、TanStack Query、Radix UI、CodeMirror、react-i18next、xterm.js、Zustand
+- **后端**：Rust、Tauri 2.x、Axum（web server 模式）、tower-http
+- **工具**：pnpm、Vitest、MSW
 
 ---
 
 ## 更新日志
 
-参见 [CHANGELOG.md](CHANGELOG.md) — 当前推荐稳定版本：**v0.10.1**
+见 [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
 ## 致谢
 
-本项目基于 Jason Young (farion1231) 的开源项目 **[cc-switch](https://github.com/farion1231/cc-switch)** 二次开发。衷心感谢原作者创建了如此优秀的开源项目，为本项目奠定了坚实基础。没有上游项目的开拓性工作，就不会有 cc-switch-web 的诞生。
+本项目是 [cc-switch](https://github.com/farion1231/cc-switch)（Jason Young）的 fork 版本。感谢原作者的出色工作。
 
-上游 Tauri 桌面应用统一了供应商切换、MCP 管理、技能和提示词功能，具备完善的国际化和安全特性。cc-switch-web 在此基础上增加了 Web/服务器运行模式、CORS 控制、Basic Auth、更多模板，以及云端/无头部署文档。
-
----
-
-## 法律与合规摘要
-
-> [!WARNING]
-> 本项目仅供学习、研究与社区交流使用。请在使用前仔细甄别并确认你的具体用途是否符合所在地适用法律法规、平台规则以及第三方服务条款。
->
-> 使用本项目即表示你理解并同意：你应自行评估、决定并承担因配置、部署、调用或其他使用行为产生的相关风险。在适用法律允许的最大范围内，本项目按 **“现状（AS IS）”** 提供，不提供任何明示或默示保证。
->
-> **但这并不意味着可以完全排除或豁免一切法律责任。** 凡适用法律规定不得排除、限制或免除的责任，仍应依法承担。
-
-- **允许范围**：学习、研究、自托管实验与社区交流。
-- **禁止用途**：任何违法违规行为、侵权行为、未获授权的数据抓取或数据处理、绕过平台/服务限制、规避访问控制或限流、滥用他人账号 / API Key / 凭证，或违反第三方条款的行为。
-- **第三方条款优先**：当你使用 **OpenAI、Anthropic、Google Gemini、OpenCode、OMO** 以及云厂商、托管平台或其他第三方服务时，你必须自行阅读并遵守其适用条款、政策和使用规则。如本项目文档与前述规则冲突，**以适用法律及第三方具有约束力的条款为准**。
-- **进一步说明**：详见 [LEGAL_NOTICE.md](LEGAL_NOTICE.md)。开源许可文本见 [LICENSE](LICENSE)，补充说明见 [LICENSE_NOTICE.md](LICENSE_NOTICE.md)。
+基于 Laliet 的 cc-switch-web fork（添加了 web/server 运行时、CORS 控制、Basic Auth）。本版本新增 Hermes Agent 集成、Token Plan 模板、AgentSidebar、RemoteTerminal 和自动轮换。
 
 ---
 

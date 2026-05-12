@@ -1,72 +1,53 @@
 # cc-switch-web
 
-> Web-based CC Switch for Claude Code, Codex, Gemini CLI, OpenCode & OMO.
+> Web-based CC Switch for Claude Code, Codex, Gemini CLI, OpenCode, OMO & Hermes Agent.
 
-<sub>🙏 This project is a fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) by Jason Young. Thanks to the original author for the excellent work. This fork adds Web Server mode for cloud/headless deployment.</sub>
+<sub>🙏 This project is a fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) by Jason Young. Thanks to the original author for the excellent work. This fork adds Web Server mode for cloud/headless deployment, plus Hermes Agent integration.</sub>
 
-[![Release](https://img.shields.io/github/v/release/Laliet/cc-switch-web?style=flat-square&logo=github&label=Release)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![License](https://img.shields.io/github/license/Laliet/cc-switch-web?style=flat-square)](LICENSE)
-[![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/Laliet/cc-switch-web/releases/latest)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/Laliet/cc-switch-web/pkgs/container/cc-switch-web)
+[![Release](https://img.shields.io/github/v/release/Bandersnatch0x/cc-switch-web?style=flat-square&logo=github&label=Release)](https://github.com/Bandersnatch0x/cc-switch-web/releases/latest)
+[![License](https://img.shields.io/github/license/Bandersnatch0x/cc-switch-web?style=flat-square)](LICENSE)
 
-**Cross-platform web-based All-in-One assistant for Claude Code, Codex, Gemini CLI, OpenCode & OMO**
+**Cross-platform web-based All-in-One assistant for Claude Code, Codex, Gemini CLI, OpenCode, OMO & Hermes Agent**
 
 English | [中文](README_ZH.md) | [Legal Notice](LEGAL_NOTICE.md) | [Changelog](CHANGELOG.md)
 
-> Recommended stable release: [v0.10.1](https://github.com/Laliet/cc-switch-web/releases/tag/v0.10.1)  
-> `v0.10.1` is the current stable release
-
 ## About / 项目简介
 
-**cc-switch-web** is a cross-platform web-based **CC Switch** for **Claude Code**, **Codex**, **Gemini CLI**, **OpenCode**, and **oh-my-opencode (OMO)**. It lets you switch providers, manage MCP servers, install skills, edit system prompts, and run the same workflow on desktop or headless cloud environments.
+**cc-switch-web** is a cross-platform web-based **CC Switch** for **Claude Code**, **Codex**, **Gemini CLI**, **OpenCode**, **oh-my-opencode (OMO)**, and **Hermes Agent**. It lets you switch providers, manage MCP servers, install skills, edit system prompts, and run the same workflow on desktop or headless cloud environments.
 
 Whether you're working locally or in a headless cloud environment, cc-switch-web offers a seamless experience for:
 
 - **One-click provider switching** between OpenAI-compatible API endpoints
-- **Unified MCP server management** across Claude/Codex/Gemini/OpenCode
+- **Unified MCP server management** across Claude/Codex/Gemini/OpenCode/Hermes
 - **Skills marketplace** to browse and install Claude skills from GitHub
 - **System prompt editor** with syntax highlighting
 - **Configuration backup/restore** with version history
 - **Web server mode** for cloud/headless deployment with Basic Auth
+- **Hermes Agent integration** with auto-rotation, Token Plan templates, and remote terminal
 
 ---
 
-## Contact /联系
-
-If you have any questions, you can contact me here https://linux.do/t/topic/1217545
-
 ## What's New
+
+### v1.0.0 — Hermes Agent & Terminal
+
+- **Hermes Agent support**: Full integration as a managed app with provider switching, directory settings, and capability flags
+- **Token Plan templates**: One-click config for Kimi, Zhipu, MiniMax via Anthropic-compatible endpoints
+- **AgentSidebar**: New sidebar layout with plugin mode filtering (shows only Hermis in plugin mode)
+- **RemoteTerminal**: Built-in xterm.js terminal with WebSocket PTY binary protocol
+- **Auto-rotation backend**: Hermes rotation task starts automatically with the web server
+- **i18n audit**: 88 missing translation keys added across en.json and zh.json
 
 ### v0.11.0-rc.2 - Prerelease
 
 - Add Web/headless local HTTP forward proxy v1 with Settings controls for start, stop, status, test, and auto-start
 - Harden proxy startup and takeover UX based on real server testing
 - Prevent repeated proxy takeover requests and duplicate/stuck takeover toasts
-- Fix Claude provider JSON formatting so the outer `env` object is preserved
-- Fix the default Anthropic Skills repository scan path to avoid `skills/skills/*` installs
-- Improve OMO MCP / Skills entry points and clarify that OMO Skills reuse OpenCode storage
-- Release notes: [v0.11.0-rc.2](docs/release-note-v0.11.0-rc.2-en.md)
 
-### v0.10.1 - Current Stable Release
+### v0.10.1 - Stable Release
 
 - Recommended for daily use and production
 - Download stable builds from: [v0.10.1](https://github.com/Laliet/cc-switch-web/releases/tag/v0.10.1)
-
-### v0.10.0 - Prerelease Milestone
-
-- Add OpenCode provider management and automatic OpenCode config writing
-- Add oh-my-opencode (OMO) configuration management and plugin sync support
-- Allow updating Web-mode login username/password directly from Settings
-- Improve rollback safety for OMO/OpenCode linked writes and current-provider edits
-- `v0.10.0` was the verification prerelease milestone for this release line
-
-### v0.8.0 - Previous Stable Baseline
-
-- Web mode defaults to same-origin CORS
-- `ALLOW_LAN_CORS=1` / `CC_SWITCH_LAN_CORS=1` for private LAN auto-allow
-- Safer default behavior for remote deployments
 
 ## Screenshots
 
@@ -82,12 +63,6 @@ _MCP Server Management_
 ![Skills Marketplace](pic/skills商店管理展示.png)
 _Skills Marketplace_
 
-![Extended Provider List](pic/扩展的中转服务商列表.png)
-_Extended Provider List_
-
-![Configure Provider](pic/配置中转服务商展示.png)
-_Configure Provider_
-
 ---
 
 ## Features
@@ -95,13 +70,15 @@ _Configure Provider_
 ### Core Features
 
 - **Multi-Provider Management**: Switch between different AI providers (OpenAI-compatible endpoints) with one click
-- **Unified MCP Management**: Configure Model Context Protocol servers across Claude/Codex/Gemini/OpenCode
+- **Unified MCP Management**: Configure Model Context Protocol servers across Claude/Codex/Gemini/OpenCode/Hermes
 - **Skills Marketplace**: Browse and install Claude skills from GitHub repositories
 - **Prompt Management**: Create and manage system prompts with a built-in CodeMirror editor
+- **Remote Terminal**: Built-in terminal with xterm.js + WebSocket PTY for direct server shell access
 
 ### Extended Features
 
 - **Backup Auto-failover**: Automatically switch to backup providers when primary fails
+- **Hermes Auto-Rotation**: Automatic provider rotation for Hermes Agent with configurable plans
 - **Import/Export**: Backup and restore all configurations with version history
 - **Cross-platform**: Available for Windows, macOS, Linux (desktop) and Web/Docker (server)
 
@@ -111,8 +88,6 @@ _Configure Provider_
 
 ### Option 1: Web Server Mode (Recommended)
 
-Recommended: Use Web Server Mode for headless/cloud deployments and remote access.
-
 Lightweight web server for headless environments. Access via browser, no GUI dependencies.
 
 #### Method A: Prebuilt Binary (Recommended)
@@ -121,54 +96,19 @@ Download precompiled server binary—no compilation required:
 
 | Architecture              | Download                                                                                                                          |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Linux x86_64 (glibc)**  | [cc-switch-server-linux-x86_64](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/cc-switch-server-linux-x86_64)   |
-| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/cc-switch-server-linux-aarch64) |
-
-> **Note (glibc)**: Binaries are built on Ubuntu 22.04 (glibc baseline).  
-> If you see `GLIBC_2.xx not found`, use Docker or build from source.  
-> Check your glibc with `ldd --version`.
+| **Linux x86_64 (glibc)**  | [cc-switch-server-linux-x86_64](https://github.com/Bandersnatch0x/cc-switch-web/releases/latest)                                   |
+| **Linux aarch64 (glibc)** | [cc-switch-server-linux-aarch64](https://github.com/Bandersnatch0x/cc-switch-web/releases/latest)                                  |
 
 **One-Line Deploy**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
-```
-
-**Quick fixes**:
-
-- `GLIBC_2.xx not found`: use Docker (`ghcr.io/laliet/cc-switch-web:latest`) or build from source.
-- Need container-first deployment: run `docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest`.
-- Windows + WSL shared configs: Settings now provides a one-click WSL template path filler in Advanced tab.
-
-**Advanced options**:
-
-```bash
-# Custom install directory and port
-INSTALL_DIR=/opt/cc-switch PORT=8080 curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
-
-# Create systemd service for auto-start
-CREATE_SERVICE=1 curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
+curl -fsSL https://raw.githubusercontent.com/Bandersnatch0x/cc-switch-web/main/scripts/deploy-web.sh | bash -s -- --prebuilt
 ```
 
 #### Method B: Docker Container
 
-Docker image published to GitHub Container Registry (ghcr.io):
-
 ```bash
-docker run -p 3000:3000 ghcr.io/laliet/cc-switch-web:latest
-```
-
-> ⚠️ **Note**: Docker image name must be **lowercase** (`laliet`, not `Laliet`)
-
-**Advanced Docker options**:
-
-```bash
-# Use the deploy script (custom port/version/data dir/background)
-./scripts/docker-deploy.sh -p 8080 --data-dir /opt/cc-switch-data -d
-
-# Build locally (optional)
-docker build -t cc-switch-web .
-docker run -p 3000:3000 cc-switch-web
+docker run -p 3000:3000 ghcr.io/bandersnatch0x/cc-switch-web:latest
 ```
 
 #### Method C: Build from Source
@@ -177,7 +117,7 @@ Dependencies: `libssl-dev`, `pkg-config`, Rust 1.78+, pnpm (no WebKit/GTK needed
 
 ```bash
 # 1. Clone and install dependencies
-git clone https://github.com/Laliet/cc-switch-web.git
+git clone https://github.com/Bandersnatch0x/cc-switch-web.git
 cd cc-switch-web
 pnpm install
 
@@ -194,7 +134,7 @@ HOST=0.0.0.0 PORT=3000 ./target/release/examples/server
 
 - **Username**: `admin`
 - **Password**: Auto-generated on first run, stored in `~/.cc-switch/web_password`
-- **CORS**: Same-origin by default; set `CORS_ALLOW_ORIGINS=https://your-domain.com` for cross-origin (`CORS_ALLOW_ORIGINS="*"` is ignored). For LAN/private origins, enable `ALLOW_LAN_CORS=1` (or `CC_SWITCH_LAN_CORS=1`) to auto-allow
+- **CORS**: Same-origin by default; set `CORS_ALLOW_ORIGINS=https://your-domain.com` for cross-origin
 - **Note**: Web mode doesn't support native file pickers—enter paths manually
 
 ### Security
@@ -205,70 +145,34 @@ HOST=0.0.0.0 PORT=3000 ./target/release/examples/server
 - Browser will prompt for credentials (username/password)
 - CSRF token is automatically injected and validated for non-GET requests
 
-**Security Headers**:
-
-- HSTS (HTTP Strict Transport Security) enabled by default
-- X-Frame-Options: DENY (prevents clickjacking)
-- X-Content-Type-Options: nosniff
-- Referrer-Policy: no-referrer
-
 **Best Practices**:
 
 - Deploy behind a reverse proxy with TLS in production
-- Set `ALLOW_HTTP_BASIC_OVER_HTTP=1` only if you understand the risks
 - Keep `~/.cc-switch/web_password` file secure (mode 0600)
 
 **Environment Variables**:
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | 3000 |
 | `HOST` | Bind address | 127.0.0.1 |
 | `ENABLE_HSTS` | Enable HSTS header | true |
 | `CORS_ALLOW_ORIGINS` | Allowed origins (comma-separated) | (same-origin) |
-| `CORS_ALLOW_CREDENTIALS` | Allow credentials in CORS | false |
 | `ALLOW_LAN_CORS` | Auto-allow private LAN origins for CORS | false |
-| `CC_SWITCH_LAN_CORS` | Auto-set when LAN CORS auto-allow is enabled | (unset) |
-| `ALLOW_HTTP_BASIC_OVER_HTTP` | Suppress HTTP warning | false |
-| `WEB_CSRF_TOKEN` | Override CSRF token | (auto-generated) |
 
 ### Option 2: Desktop Application (GUI)
 
 Full-featured desktop app with graphical interface, built with Tauri.
 
-| Platform    | Download                                                                                                                                        | Description                              |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Windows** | [CC-Switch-v0.10.1-Windows.msi](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Windows.msi)                   | Installer (current stable)               |
-|             | [CC-Switch-v0.10.1-Windows-Portable.zip](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Windows-Portable.zip) | Portable (no install)                    |
-| **macOS**   | [CC-Switch-v0.10.1-macOS.zip](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-macOS.zip)                       | Universal binary (Intel + Apple Silicon) |
-| **Linux**   | [CC-Switch-v0.10.1-Linux.AppImage](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Linux.AppImage)             | AppImage (current stable)                |
-|             | [CC-Switch-v0.10.1-Linux.deb](https://github.com/Laliet/cc-switch-web/releases/download/v0.10.1/CC-Switch-v0.10.1-Linux.deb)                       | Debian/Ubuntu package                    |
-
-**macOS Note**: If you see "damaged" warning, run: `xattr -cr "/Applications/CC Switch.app"`
-
-**Linux AppImage**: Make executable first: `chmod +x CC-Switch-*.AppImage`
-
-**Linux One-Line Install** (recommended):
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Laliet/cc-switch-web/main/scripts/install.sh | bash
-```
+# Install dependencies
+pnpm install
 
-This script will:
+# Run in dev mode
+pnpm tauri dev
 
-- Auto-detect your architecture (x86_64/aarch64)
-- Download the latest AppImage release
-- Verify SHA256 checksum (if available)
-- Install to `~/.local/bin/ccswitch` (user) or `/usr/local/bin/ccswitch` (root)
-- Create desktop entry and application icon
-
-**Advanced options**:
-
-```bash
-# Install current stable version
-VERSION=v0.10.1 curl -fsSL https://...install.sh | bash
-
-# Skip checksum verification
-NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
+# Build
+pnpm tauri build
 ```
 
 ---
@@ -277,57 +181,51 @@ NO_CHECKSUM=1 curl -fsSL https://...install.sh | bash
 
 ### 1. Adding a Provider
 
-1. Launch CC-Switch and select your target app (Claude Code / Codex / Gemini / OpenCode / OMO)
+1. Launch CC-Switch and select your target app (Claude Code / Codex / Gemini / OpenCode / OMO / Hermes)
 2. Click **"Add Provider"** button
-3. Choose a preset (e.g., OpenRouter, DeepSeek, GLM) or select "Custom"
-4. Fill in:
-   - **Name**: Display name for this provider
-   - **Base URL**: API endpoint (e.g., `https://api.openrouter.ai/v1`)
-   - **API Key**: Your API key for this provider
-   - **Model** (optional): Specific model to use
-5. Click **Save**
+3. Choose a preset or select "Custom"
+4. Fill in: Name, Base URL, API Key, Model
 
 ### 2. Switching Providers
 
 - Click the **"Enable"** button on any provider card to activate it
 - The active provider will be written to your CLI's config file immediately
-- Use system tray menu for quick switching without opening the app
 
 ### 3. Managing MCP Servers
 
 1. Go to **MCP** tab
 2. Click **"Add Server"** to configure a new MCP server
 3. Choose transport type: `stdio`, `http`, or `sse`
-4. For stdio servers, provide the command and arguments
-5. Enable/disable servers with the toggle switch
 
-### 4. Installing Skills (Claude only)
+### 4. Installing Skills
 
 1. Go to **Skills** tab
 2. Browse available skills from configured repositories
-3. Click **"Install"** to add a skill to `~/.claude/skills/`
-4. Manage installed skills and add custom repositories
+3. Click **"Install"** to add a skill
 
-### 5. System Prompts
+### 5. Hermes Token Plan
 
-1. Go to **Prompts** tab
-2. Create new prompts or edit existing ones
-3. Enable a prompt to write it to the CLI's prompt file:
-   - Claude: `~/.claude/CLAUDE.md`
-   - Codex: `~/.codex/AGENTS.md`
-   - Gemini: `~/.gemini/GEMINI.md`
+1. Go to **Hermes** tab → **Token Plan**
+2. Select a preset template (Kimi / Zhipu / MiniMax)
+3. API key and base URL are auto-filled
+4. Enable auto-rotation if desired
+
+### 6. Remote Terminal
+
+1. Click the terminal icon in the sidebar
+2. A full xterm.js terminal opens in a dialog
+3. Connected via WebSocket PTY binary protocol to the server shell
 
 ---
 
 ## Configuration Files
-
-CC-Switch manages these configuration files:
 
 | App             | Config Files                                      |
 | --------------- | ------------------------------------------------- |
 | **Claude Code** | `~/.claude.json` (MCP), `~/.claude/settings.json` |
 | **Codex**       | `~/.codex/auth.json`, `~/.codex/config.toml`      |
 | **Gemini**      | `~/.gemini/.env`, `~/.gemini/settings.json`       |
+| **Hermes**      | `~/.hermes/config.json`                           |
 
 CC-Switch's own config: `~/.cc-switch/config.json`
 
@@ -345,11 +243,14 @@ pnpm tauri dev
 # Run only the frontend dev server
 pnpm dev:renderer
 
-# Build desktop app
-pnpm tauri build
-
-# Build web assets only
+# Build web assets
 pnpm build:web
+
+# Build and run web server
+cd src-tauri && cargo run --example server --features web-server
+
+# Run type check
+npx tsc --noEmit
 
 # Run tests
 pnpm test:unit
@@ -359,7 +260,7 @@ pnpm test:unit
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, Radix UI, CodeMirror
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, Radix UI, CodeMirror, react-i18next, xterm.js, Zustand
 - **Backend**: Rust, Tauri 2.x, Axum (web server mode), tower-http
 - **Tooling**: pnpm, Vitest, MSW
 
@@ -367,31 +268,15 @@ pnpm test:unit
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) — Recommended stable version: **v0.10.1**
+See [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
 ## Credits
 
-This project is a fork of **[cc-switch](https://github.com/farion1231/cc-switch)** by Jason Young (farion1231). We sincerely thank the original author for creating such an excellent foundation. Without the upstream project's pioneering work, cc-switch-web would not exist.
+This project is a fork of **[cc-switch](https://github.com/farion1231/cc-switch)** by Jason Young (farion1231). We sincerely thank the original author for creating such an excellent foundation. Without the upstream project's pioneering work, this project would not exist.
 
-The upstream Tauri desktop app unified provider switching, MCP management, skills, and prompts with strong i18n and safety. cc-switch-web adds web/server runtime, CORS controls, Basic Auth, more templates, and documentation for cloud/headless deployment.
-
----
-
-## Legal & Compliance Summary
-
-> [!WARNING]
-> This project is provided for learning, research, and community communication only. Please carefully evaluate whether your intended use complies with applicable laws, regulations, platform rules, and third-party service terms before use.
->
-> By using this project, you agree to assess and bear the risks arising from your own configuration, deployment, and use. To the maximum extent permitted by applicable law, the project is provided on an **"AS IS"** basis, without any express or implied warranty.
->
-> **This notice does not mean all legal risks can be fully excluded or waived.** Liabilities that cannot be excluded or limited under applicable law shall still be governed by the applicable law.
-
-- **Allowed scope**: learning, research, self-hosting experimentation, and community communication.
-- **Prohibited uses**: unlawful activity, infringement, unauthorized data collection, bypassing platform/service restrictions, evading rate limits or access controls, abusing other people's accounts / API keys / credentials, or violating third-party terms.
-- **Third-party terms prevail**: when using services or tools from **OpenAI, Anthropic, Google Gemini, OpenCode, OMO**, cloud vendors, hosting providers, or any other third party, you must independently review and comply with their applicable terms, policies, and usage rules. If this project's documentation conflicts with those rules, **applicable law and the third party's binding terms prevail**.
-- **Further notice**: see [LEGAL_NOTICE.md](LEGAL_NOTICE.md). The open-source license text is in [LICENSE](LICENSE), with supplementary notice in [LICENSE_NOTICE.md](LICENSE_NOTICE.md).
+Based on the cc-switch-web fork by Laliet which added web/server runtime, CORS controls, and Basic Auth. This version adds Hermes Agent integration, Token Plan templates, AgentSidebar, RemoteTerminal, and auto-rotation.
 
 ---
 
