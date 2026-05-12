@@ -30,6 +30,8 @@ export interface WebLoginDialogProps {
   onLoginSuccess: () => void;
 }
 
+export type LoginStep = "credentials" | "2fa";
+
 export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
   const [apiBase, setApiBase] = useState("");
   const [apiBaseError, setApiBaseError] = useState<string | null>(null);
@@ -37,6 +39,10 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginStep, setLoginStep] = useState<LoginStep>("credentials");
+  const [totpCode, setTotpCode] = useState("");
+  const [encodedCredentials, setEncodedCredentials] = useState<string | null>(null);
+  const [effectiveApiBase, setEffectiveApiBase] = useState<string | null>(null);
   const apiBaseHelperId = "cc-switch-web-api-base-helper";
   const apiBaseErrorId = "cc-switch-web-api-base-error";
 
@@ -48,12 +54,95 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
     setPassword("");
     setError(null);
     setIsSubmitting(false);
+    setLoginStep("credentials");
+    setTotpCode("");
+    setEncodedCredentials(null);
+    setEffectiveApiBase(null);
   }, [open]);
 
   const handleClearApiBase = useCallback(() => {
     setApiBase("");
     setApiBaseError(null);
     clearWebApiBaseOverride();
+  }, []);
+
+  const handleVerify2FA = useCallback(async () => {
+    if (isSubmitting || !encodedCredentials || !effectiveApiBase) return;
+
+    const trimmedCode = totpCode.trim();
+    if (!trimmedCode || trimmedCode.length !== 6) {
+      setError("请输入6位验证码");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        buildWebApiUrlWithBase(effectiveApiBase, "/api/auth/2fa/validate"),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Basic ${encodedCredentials}`,
+          },
+          body: JSON.stringify({ code: trimmedCode }),
+        },
+      );
+
+      const data = (await response.json()) as { success: boolean };
+
+      if (response.ok && data.success) {
+        // Fetch CSRF token and complete login
+        try {
+          const tokenResponse = await fetch(
+            buildWebApiUrlWithBase(effectiveApiBase, "/system/csrf-token"),
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Basic ${encodedCredentials}`,
+              },
+            },
+          );
+          if (tokenResponse.ok) {
+            const tokenData = (await tokenResponse.json()) as {
+              csrfToken?: string | null;
+            };
+            if (tokenData?.csrfToken) {
+              window.sessionStorage?.setItem(
+                WEB_CSRF_STORAGE_KEY,
+                tokenData.csrfToken,
+              );
+            } else {
+              window.sessionStorage?.removeItem(WEB_CSRF_STORAGE_KEY);
+            }
+          }
+        } catch {
+          // ignore
+        }
+        onLoginSuccess();
+        return;
+      }
+
+      setError("验证码错误，请重试");
+    } catch (e) {
+      setError((e as Error)?.message || "网络错误");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [encodedCredentials, effectiveApiBase, isSubmitting, onLoginSuccess, totpCode]);
+
+  const handleBackToCredentials = useCallback(() => {
+    setLoginStep("credentials");
+    setTotpCode("");
+    setError(null);
+    setEncodedCredentials(null);
+    setEffectiveApiBase(null);
   }, []);
 
   const handleLogin = useCallback(async () => {
@@ -115,6 +204,37 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
           trimmedPassword,
           normalizedApiBase ?? getWebApiBase(),
         );
+
+        // Check if 2FA is enabled
+        try {
+          const twoFactorResponse = await fetch(
+            buildWebApiUrlWithBase(effectiveApiBase, "/api/auth/2fa/status"),
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Basic ${encoded}`,
+              },
+            },
+          );
+          if (twoFactorResponse.ok) {
+            const twoFactorData = (await twoFactorResponse.json()) as {
+              enabled: boolean;
+            };
+            if (twoFactorData.enabled) {
+              // Store encoded credentials and API base for 2FA step
+              setEncodedCredentials(encoded);
+              setEffectiveApiBase(effectiveApiBase);
+              setLoginStep("2fa");
+              setIsSubmitting(false);
+              return;
+            }
+          }
+        } catch {
+          // If 2FA check fails, proceed without 2FA
+        }
+
         try {
           const tokenResponse = await fetch(
             buildWebApiUrlWithBase(effectiveApiBase, "/system/csrf-token"),
@@ -160,6 +280,68 @@ export function WebLoginDialog({ open, onLoginSuccess }: WebLoginDialogProps) {
       setIsSubmitting(false);
     }
   }, [apiBase, isSubmitting, onLoginSuccess, password, username]);
+
+  if (loginStep === "2fa") {
+    return (
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader className="space-y-2">
+            <DialogTitle>两步验证</DialogTitle>
+            <DialogDescription>请输入6位验证码</DialogDescription>
+          </DialogHeader>
+
+          <form
+            className="space-y-4 px-6 py-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleVerify2FA();
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="cc-switch-web-totp">验证码</Label>
+              <Input
+                id="cc-switch-web-totp"
+                name="totp"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder="000000"
+                autoFocus
+                value={totpCode}
+                onChange={(e) => {
+                  setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  if (error) setError(null);
+                }}
+                disabled={isSubmitting}
+              />
+              <p className="text-xs text-muted-foreground">
+                请输入您 authenticator 应用中的6位验证码
+              </p>
+            </div>
+
+            {error ? (
+              <div className="text-sm text-destructive">{error}</div>
+            ) : null}
+
+            <DialogFooter className="px-0 py-0 border-0 bg-transparent">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleBackToCredentials}
+                disabled={isSubmitting}
+              >
+                返回
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "验证中..." : "验证"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>

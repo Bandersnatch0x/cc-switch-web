@@ -18,7 +18,6 @@ export const WEB_CSRF_STORAGE_KEY = "cc-switch-csrf-token";
 export const WEB_API_BASE_STORAGE_KEY = "cc-switch-web-api-base";
 
 const WEB_UNSUPPORTED_COMMANDS: Record<string, string> = {
-  test_api_endpoints: "Web 端暂不支持端点测速，请使用桌面版。",
   get_custom_endpoints: "Web 端暂不支持获取 VSCode 自定义端点，请使用桌面版。",
   add_custom_endpoint: "Web 端暂不支持添加 VSCode 自定义端点，请使用桌面版。",
   remove_custom_endpoint:
@@ -729,6 +728,16 @@ export function commandToEndpoint(
         },
       };
     }
+    case "test_api_endpoints": {
+      return {
+        method: "POST",
+        url: `${apiBase}/endpoints/test`,
+        body: {
+          urls: requireArg(args, "urls", cmd),
+          timeoutSecs: args.timeoutSecs,
+        },
+      };
+    }
 
     // MCP commands
     case "get_claude_mcp_status":
@@ -1108,6 +1117,12 @@ export function commandToEndpoint(
         body: { snippet: requireArg(args, "snippet", cmd) },
       };
     }
+
+    // System commands
+    case "get_runtime_mode":
+      return { method: "GET", url: `${apiBase}/system/mode` };
+    case "get_installed_clis":
+      return { method: "GET", url: `${apiBase}/system/installed-clis` };
 
     default:
       throw new Error(`Command ${cmd} is not supported in web mode`);

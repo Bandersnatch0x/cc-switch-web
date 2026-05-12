@@ -22,6 +22,8 @@ import {
   isWeb,
 } from "@/lib/api/adapter";
 import { AppSwitcher } from "@/components/AppSwitcher";
+import { useRuntimeMode } from "@/hooks/useRuntimeMode";
+import { BottomNav } from "@/components/MobileNav";
 import {
   isMcpApp,
   isPromptApp,
@@ -42,7 +44,10 @@ import PromptPanel from "@/components/prompts/PromptPanel";
 import { SkillsPage } from "@/components/skills/SkillsPage";
 import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
 import WebLoginDialog from "@/components/WebLoginDialog";
+import { HermesConfigPanel } from "@/components/hermes/HermesConfigPanel";
+import { RemoteTerminal } from "@/components/terminal/RemoteTerminal";
 import { Button } from "@/components/ui/button";
+import { AgentSidebar } from "@/components/layout/AgentSidebar";
 import {
   Dialog,
   DialogContent,
@@ -93,6 +98,7 @@ function readPersistedActiveApp(): AppId {
 
 function AppContent() {
   const { t } = useTranslation();
+  const { isPlugin } = useRuntimeMode();
 
   const [activeApp, setActiveApp] = useState<AppId>(() =>
     readPersistedActiveApp(),
@@ -103,6 +109,7 @@ function AppContent() {
   const [isMcpOpen, setIsMcpOpen] = useState(false);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [isSkillsOpen, setIsSkillsOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [usageProvider, setUsageProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
@@ -127,6 +134,16 @@ function AppContent() {
 
   const handleSwitchApp = useCallback((app: AppId) => {
     setUsageProvider(null);
+    // Close panels that won't be supported by the new app
+    if (!isPromptApp(app)) {
+      setIsPromptOpen(false);
+    }
+    if (!isMcpApp(app)) {
+      setIsMcpOpen(false);
+    }
+    if (!isSkillsApp(app)) {
+      setIsSkillsOpen(false);
+    }
     setActiveApp(app);
     if (typeof window === "undefined") return;
     try {
@@ -159,6 +176,13 @@ function AppContent() {
     usageProvider,
     usageSupported,
   ]);
+
+  // Plugin mode: force activeApp to "hermes"
+  useEffect(() => {
+    if (isPlugin && activeApp !== "hermes") {
+      setActiveApp("hermes");
+    }
+  }, [isPlugin, activeApp]);
 
   // 🎯 使用 useProviderActions Hook 统一管理所有 Provider 操作
   const {
@@ -574,140 +598,180 @@ function AppContent() {
         />
       )}
 
-      <header className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            <a
-              href="https://github.com/farion1231/cc-switch"
-              target="_blank"
-              rel="noreferrer"
-              className="text-xl font-semibold text-blue-500 transition-colors hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              CC Switch
-            </a>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSettingsOpen(true)}
-              title={t("common.settings")}
-              className="ml-2"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsEditMode(!isEditMode)}
-              title={t(
-                isEditMode ? "header.exitEditMode" : "header.enterEditMode",
-              )}
-              className={
-                isEditMode
-                  ? "text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                  : ""
-              }
-            >
-              <Edit3 className="h-4 w-4" />
-            </Button>
-            <UpdateBadge onClick={() => setIsSettingsOpen(true)} />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-col gap-1">
-              <AppSwitcher activeApp={activeApp} onSwitch={handleSwitchApp} />
-              <span className="text-xs text-muted-foreground">
-                {t("apps.scopeHint", {
-                  defaultValue:
-                    "Switches the current management view only. Live config changes happen when you switch providers.",
-                })}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {t("provider.backupLabel", { defaultValue: "备用" })}
-              </span>
-              <Select
-                value={backupProviderId ?? "none"}
-                onValueChange={(val) => {
-                  const next = val === "none" ? null : val;
-                  void handleSetBackup(next);
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue
-                    placeholder={t("provider.backupPlaceholder", {
-                      defaultValue: "选择备用供应商",
-                    })}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    {t("common.none", { defaultValue: "无" })}
-                  </SelectItem>
-                  {Object.values(providers).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {promptSupported ? (
-              <Button
-                variant="mcp"
-                onClick={() => setIsPromptOpen(true)}
-                className="min-w-[80px]"
-              >
-                {t("prompts.manage")}
-              </Button>
-            ) : null}
-            {mcpSupported ? (
-              <Button
-                variant="mcp"
-                onClick={() => setIsMcpOpen(true)}
-                className="min-w-[80px]"
-              >
-                MCP
-              </Button>
-            ) : null}
-            {skillsSupported ? (
-              <Button
-                variant="mcp"
-                onClick={() => setIsSkillsOpen(true)}
-                className="min-w-[80px]"
-              >
-                {t("skills.manage")}
-              </Button>
-            ) : null}
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus className="h-4 w-4" />
-              {t("header.addProvider")}
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-scroll">
-        <div className="mx-auto max-w-4xl px-6 py-6">
-          <ProviderList
-            providers={providers}
-            currentProviderId={currentProviderId}
-            backupProviderId={backupProviderId}
-            healthMap={healthMap}
-            appId={activeApp}
-            isLoading={isLoading}
-            isEditMode={isEditMode}
-            onSwitch={switchProvider}
-            onEdit={setEditingProvider}
-            onDelete={setConfirmDelete}
-            onDuplicate={handleDuplicateProvider}
-            onConfigureUsage={setUsageProvider}
-            onOpenWebsite={handleOpenWebsite}
-            onCreate={() => setIsAddOpen(true)}
-            onAutoFailover={handleAutoFailover}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar — hidden on mobile, shown on md+ */}
+        <div className="hidden md:flex">
+          <AgentSidebar
+            activeApp={activeApp}
+            onAppSelect={handleSwitchApp}
+            isPlugin={isPlugin}
+            onTerminalClick={() => setTerminalOpen(true)}
           />
         </div>
-      </main>
+
+        <div className="flex flex-1 flex-col min-w-0">
+          <header className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <a
+                  href="https://github.com/farion1231/cc-switch"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xl font-semibold text-blue-500 transition-colors hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  CC Switch
+                </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSettingsOpen(true)}
+                  title={t("common.settings")}
+                  className="ml-2"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  title={t(
+                    isEditMode
+                      ? "header.exitEditMode"
+                      : "header.enterEditMode",
+                  )}
+                  className={
+                    isEditMode
+                      ? "text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                      : ""
+                  }
+                >
+                  <Edit3 className="h-4 w-4" />
+                </Button>
+                <UpdateBadge onClick={() => setIsSettingsOpen(true)} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col gap-1">
+                  {!isPlugin && (
+                    <AppSwitcher
+                      activeApp={activeApp}
+                      onSwitch={handleSwitchApp}
+                    />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {t("apps.scopeHint", {
+                      defaultValue:
+                        "Switches the current management view only. Live config changes happen when you switch providers.",
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {t("provider.backupLabel", { defaultValue: "备用" })}
+                  </span>
+                  <Select
+                    value={backupProviderId ?? "none"}
+                    onValueChange={(val) => {
+                      const next = val === "none" ? null : val;
+                      void handleSetBackup(next);
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue
+                        placeholder={t("provider.backupPlaceholder", {
+                          defaultValue: "选择备用供应商",
+                        })}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        {t("common.none", { defaultValue: "无" })}
+                      </SelectItem>
+                      {Object.values(providers).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {promptSupported ? (
+                  <Button
+                    variant="mcp"
+                    onClick={() => setIsPromptOpen(true)}
+                    className="min-w-[80px]"
+                  >
+                    {t("prompts.manage")}
+                  </Button>
+                ) : null}
+                {mcpSupported ? (
+                  <Button
+                    variant="mcp"
+                    onClick={() => setIsMcpOpen(true)}
+                    className="min-w-[80px]"
+                  >
+                    MCP
+                  </Button>
+                ) : null}
+                {skillsSupported ? (
+                  <Button
+                    variant="mcp"
+                    onClick={() => setIsSkillsOpen(true)}
+                    className="min-w-[80px]"
+                  >
+                    {t("skills.manage")}
+                  </Button>
+                ) : null}
+                <Button onClick={() => setIsAddOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  {t("header.addProvider")}
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
+            <div className="mx-auto max-w-4xl px-6 py-6">
+              {activeApp === "hermes" ? (
+                <HermesConfigPanel />
+              ) : (
+                <ProviderList
+                  providers={providers}
+                  currentProviderId={currentProviderId}
+                  backupProviderId={backupProviderId}
+                  healthMap={healthMap}
+                  appId={activeApp}
+                  isLoading={isLoading}
+                  isEditMode={isEditMode}
+                  onSwitch={switchProvider}
+                  onEdit={setEditingProvider}
+                  onDelete={setConfirmDelete}
+                  onDuplicate={handleDuplicateProvider}
+                  onConfigureUsage={setUsageProvider}
+                  onOpenWebsite={handleOpenWebsite}
+                  onCreate={() => setIsAddOpen(true)}
+                  onAutoFailover={handleAutoFailover}
+                />
+              )}
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <BottomNav
+        activeApp={activeApp}
+        promptSupported={promptSupported}
+        mcpSupported={mcpSupported}
+        skillsSupported={skillsSupported}
+        onSwitchApp={handleSwitchApp}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onEditModeToggle={() => setIsEditMode(!isEditMode)}
+        onAddProvider={() => setIsAddOpen(true)}
+        onOpenPrompts={() => setIsPromptOpen(true)}
+        onOpenMcp={() => setIsMcpOpen(true)}
+        onOpenSkills={() => setIsSkillsOpen(true)}
+        isEditMode={isEditMode}
+      />
 
       <AddProviderDialog
         open={isAddOpen}
@@ -795,6 +859,10 @@ function AppContent() {
         </Dialog>
       ) : null}
       <DeepLinkImportDialog />
+      <RemoteTerminal
+        open={terminalOpen}
+        onClose={() => setTerminalOpen(false)}
+      />
     </div>
   );
 }

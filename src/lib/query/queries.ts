@@ -47,23 +47,30 @@ export const useProvidersQuery = (
       let backupProviderId: string | null = null;
       let providersLoaded = false;
 
-      try {
-        providers = await providersApi.getAll(appId);
+      const [providersResult, currentResult, backupResult] =
+        await Promise.allSettled([
+          providersApi.getAll(appId),
+          providersApi.getCurrent(appId),
+          providersApi.getBackup(appId),
+        ]);
+
+      if (providersResult.status === "fulfilled") {
+        providers = providersResult.value;
         providersLoaded = true;
-      } catch (error) {
-        console.error("获取供应商列表失败:", error);
+      } else {
+        console.error("获取供应商列表失败:", providersResult.reason);
       }
 
-      try {
-        currentProviderId = await providersApi.getCurrent(appId);
-      } catch (error) {
-        console.error("获取当前供应商失败:", error);
+      if (currentResult.status === "fulfilled") {
+        currentProviderId = currentResult.value;
+      } else {
+        console.error("获取当前供应商失败:", currentResult.reason);
       }
 
-      try {
-        backupProviderId = await providersApi.getBackup(appId);
-      } catch (error) {
-        console.error("获取备用供应商失败:", error);
+      if (backupResult.status === "fulfilled") {
+        backupProviderId = backupResult.value;
+      } else {
+        console.error("获取备用供应商失败:", backupResult.reason);
       }
 
       if (providersLoaded && Object.keys(providers).length === 0) {

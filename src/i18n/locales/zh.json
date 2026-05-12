@@ -27,7 +27,10 @@
     "formatSuccess": "格式化成功",
     "formatError": "格式化失败：{{error}}",
     "copy": "复制",
-    "view": "查看"
+    "view": "查看",
+    "none": "无",
+    "retry": "重试",
+    "refresh": "刷新"
   },
   "apiKeyInput": {
     "placeholder": "请输入API Key",
@@ -44,7 +47,8 @@
     "editCommonConfig": "编辑通用配置",
     "editCommonConfigTitle": "编辑通用配置片段",
     "commonConfigHint": "该片段会在勾选\"写入通用配置\"时合并到 settings.json 中",
-    "fullSettingsHint": "完整的 Claude Code settings.json 配置内容"
+    "fullSettingsHint": "完整的 Claude Code settings.json 配置内容",
+    "commonConfigDescription": "Claude 通用配置"
   },
   "header": {
     "viewOnGithub": "在 GitHub 上查看",
@@ -103,6 +107,10 @@
     "backupUpdateFailed": "备用供应商更新失败：{{error}}",
     "autoFailover": "已自动切换到备用供应商：{{name}}",
     "autoFailoverFailed": "自动切换备用失败：{{error}}",
+    "updateFailed": "更新供应商失败：{{error}}",
+    "deleteFailed": "删除供应商失败：{{error}}",
+    "backupUnavailable": "备用供应商也不可用，保持当前供应商",
+    "duplicateFailed": "复制供应商失败：{{error}}",
     "geminiConfig": "Gemini 配置",
     "geminiConfigHint": "使用 .env 格式配置 Gemini",
     "form": {
@@ -112,7 +120,18 @@
         "oauthHint": "Google 官方使用 OAuth 个人认证，无需填写 API Key。首次使用时会自动打开浏览器进行登录。",
         "apiKeyPlaceholder": "请输入 Gemini API Key"
       }
-    }
+    },
+    "health": {
+      "availability24h": "24 小时可用率",
+      "availabilityUnknown": "可用率未知",
+      "available": "可用",
+      "degraded": "降级",
+      "latency": "延迟",
+      "statusLabel": "状态",
+      "unavailable": "不可用",
+      "unknown": "未知"
+    },
+    "officialPartner": "官方合作伙伴"
   },
   "notifications": {
     "providerAdded": "供应商已添加",
@@ -139,7 +158,8 @@
     "deleteSuccess": "供应商已删除",
     "deleteFailed": "删除供应商失败：{{error}}",
     "settingsSaved": "设置已保存",
-    "settingsSaveFailed": "保存设置失败：{{error}}"
+    "settingsSaveFailed": "保存设置失败：{{error}}",
+    "openLinkFailed": "打开链接失败：{{error}}"
   },
   "confirm": {
     "deleteProvider": "删除供应商",
@@ -249,7 +269,65 @@
         "passwordTooShort": "密码至少需要 {{min}} 个字符"
       }
     },
-    "saving": "正在保存..."
+    "saving": "正在保存...",
+    "description": "配置应用设置",
+    "manualDirectoryInput": "手动输入目录",
+    "proxy": {
+      "advanced": "高级",
+      "alreadyRunning": "代理已在运行",
+      "autoStart": "自动启动",
+      "bindApp": "绑定应用",
+      "bindAppDescription": "将此代理绑定到特定应用",
+      "description": "配置代理服务器设置",
+      "enableLogging": "启用日志",
+      "enabled": "已启用",
+      "experimental": "实验性功能",
+      "failover": "故障转移",
+      "firstByteTimeout": "首字节超时",
+      "host": "主机",
+      "idleTimeout": "空闲超时",
+      "listen": "监听",
+      "loadingLogs": "加载日志...",
+      "noRecentLogs": "暂无最近日志",
+      "nonStreamingTimeout": "非流式超时",
+      "omoUnsupported": "此平台不支持 OMO",
+      "port": "端口",
+      "providerHidden": "Provider 已隐藏",
+      "publicBindWarning": "警告：绑定到公共地址",
+      "recentLogs": "最近日志",
+      "requests": "请求数",
+      "restore": "恢复",
+      "restoreFailed": "恢复失败",
+      "restored": "恢复成功",
+      "running": "运行中",
+      "start": "启动",
+      "startFailed": "启动失败",
+      "started": "启动成功",
+      "stop": "停止",
+      "stopFailed": "停止失败",
+      "stopped": "已停止",
+      "stoppedStatus": "已停止",
+      "successRate": "成功率",
+      "takeover": "接管",
+      "takeoverDescription": "从其他实例接管代理",
+      "takeoverDisabled": "接管已禁用",
+      "takeoverEnabled": "接管已启用",
+      "takeoverFailed": "接管失败",
+      "test": "测试",
+      "testApp": "测试应用",
+      "testFailed": "测试失败",
+      "testSuccess": "测试通过",
+      "testedApp": "已测试应用",
+      "title": "代理",
+      "upstreamProxy": "上游代理",
+      "uptime": "运行时间",
+      "validation": {
+        "hostRequired": "主机地址为必填项",
+        "portInvalid": "端口号无效",
+        "publicBindRequiresEnable": "绑定到公共地址需要先启用代理"
+      }
+    },
+    "restartRequiredDescription": "部分更改需要重启才能生效"
   },
   "apps": {
     "claude": "Claude Code",
@@ -257,6 +335,8 @@
     "gemini": "Gemini",
     "opencode": "OpenCode",
     "omo": "OMO",
+    "hermes": "Hermes",
+    "openclaw": "OpenClaw",
     "comingSoon": "即将支持",
     "scopeHint": "这里只切换当前管理视图；真正写入实际配置发生在切换供应商时。"
   },
@@ -359,7 +439,8 @@
     "pleaseAddEndpoint": "请先添加端点",
     "testUnavailable": "测速功能不可用",
     "noResult": "未返回结果",
-    "testFailed": "测速失败: {{error}}"
+    "testFailed": "测速失败: {{error}}",
+    "description": "测试 provider 端点连通性和性能"
   },
   "codexConfig": {
     "authJson": "auth.json (JSON) *",
@@ -371,7 +452,11 @@
     "editCommonConfig": "编辑通用配置",
     "editCommonConfigTitle": "编辑 Codex 通用配置片段",
     "commonConfigHint": "该片段会在勾选'写入通用配置'时追加到 config.toml 末尾",
-    "apiUrlLabel": "API 请求地址"
+    "apiUrlLabel": "API 请求地址",
+    "commonConfigDescription": "Codex 通用配置",
+    "modelName": "模型名称",
+    "modelNameHint": "指定 Codex 使用的模型",
+    "modelNamePlaceholder": "例如 gpt-4o"
   },
   "geminiConfig": {
     "envFile": "环境变量 (.env)",
@@ -381,13 +466,15 @@
     "writeCommonConfig": "写入通用配置",
     "editCommonConfig": "编辑通用配置",
     "editCommonConfigTitle": "编辑 Gemini 通用配置片段",
-    "commonConfigHint": "通用配置片段将合并到所有启用它的 Gemini 供应商配置中"
+    "commonConfigHint": "通用配置片段将合并到所有启用它的 Gemini 供应商配置中",
+    "commonConfigDescription": "Gemini 通用配置"
   },
   "providerPreset": {
     "label": "预设供应商",
     "custom": "自定义配置",
     "other": "其他",
-    "hint": "选择预设后可继续调整下方字段。"
+    "hint": "选择预设后可继续调整下方字段。",
+    "categoryOther": "其他"
   },
   "usage": {
     "queryFailed": "查询失败",
@@ -416,7 +503,11 @@
       "newapi": "New API",
       "packycode": "PackyCode",
       "88code": "88code",
-      "privnode": "Privnode"
+      "privnode": "Privnode",
+      "token_plan": "Token Plan",
+      "kimi": "Kimi",
+      "zhipu": "智谱",
+      "minimax": "MiniMax"
     },
     "credentialsConfig": "凭证配置",
     "accessToken": "访问令牌",
@@ -462,7 +553,8 @@
     "fieldExtra": "• extra: 字符串，扩展字段，可自由补充需要展示的文本",
     "tip1": "• 变量 {{apiKey}} 和 {{baseUrl}} 会自动替换",
     "tip2": "• extractor 函数在沙箱环境中执行，支持 ES2020+ 语法",
-    "tip3": "• 整个配置必须用 () 包裹，形成对象字面量表达式"
+    "tip3": "• 整个配置必须用 () 包裹，形成对象字面量表达式",
+    "description": "为不同 Provider 配置用量追踪脚本"
   },
   "errors": {
     "usage_query_failed": "用量查询失败"
@@ -485,6 +577,7 @@
       "editServer": "编辑服务器",
       "deleteServer": "删除服务器",
       "deleteConfirm": "确定要删除服务器 \"{{id}}\" 吗？此操作无法撤销。",
+      "description": "集中管理 MCP 服务器并控制其应用范围。",
       "noServers": "暂无服务器",
       "enabledApps": "启用的应用",
       "apps": {
@@ -542,6 +635,7 @@
     },
     "wizard": {
       "title": "MCP 配置向导",
+      "description": "快速配置 MCP 服务器，自动生成 JSON 配置",
       "hint": "快速配置 MCP 服务器，自动生成 JSON 配置",
       "type": "类型",
       "typeStdio": "stdio",
@@ -668,7 +762,9 @@
     "confirm": {
       "deleteTitle": "确认删除",
       "deleteMessage": "确定要删除提示词 \"{{name}}\" 吗？"
-    }
+    },
+    "dialogDescription": "管理和执行提示词",
+    "panelDescription": "浏览和配置提示词"
   },
   "env": {
     "warning": {
@@ -714,11 +810,48 @@
     "title": "Claude Skills 管理",
     "description": "从流行的仓库发现并安装 Claude 技能，扩展 Claude Code/Codex 的能力",
     "search": "搜索技能...",
-    "filter": "筛选",
+    "searchPlaceholder": "搜索技能名称或描述",
+    "filter": {
+      "all": "全部",
+      "allRepos": "所有仓库",
+      "installStatus": "安装状态",
+      "installed": "已安装",
+      "repo": "仓库",
+      "uninstalled": "未安装"
+    },
     "filterAll": "全部",
     "filterInstalled": "已安装",
     "filterNotInstalled": "未安装",
     "filterByRepo": "按仓库筛选",
+    "allRepos": "全部仓库",
+    "installStatus": "安装状态",
+    "all": "全部",
+    "installed": "已安装",
+    "uninstalled": "未安装",
+    "repo": {
+      "title": "管理技能仓库",
+      "description": "添加或删除 GitHub 技能仓库源",
+      "url": "仓库 URL",
+      "urlPlaceholder": "owner/name 或 https://github.com/owner/name",
+      "branch": "分支",
+      "branchPlaceholder": "main",
+      "path": "技能路径",
+      "pathPlaceholder": "skills (可选，留空扫描根目录)",
+      "add": "添加仓库",
+      "list": "已添加的仓库",
+      "empty": "暂无仓库",
+      "invalidUrl": "无效的仓库 URL 格式",
+      "addSuccess": "仓库 {{owner}}/{{name}} 已添加，识别到 {{count}} 个技能",
+      "addSuccessSimple": "仓库 {{owner}}/{{name}} 已添加",
+      "addFailed": "添加失败",
+      "refreshFailed": "刷新技能列表失败",
+      "removeSuccess": "仓库 {{owner}}/{{name}} 已删除",
+      "removeFailed": "删除失败",
+      "skillCount": "识别到 {{count}} 个技能",
+      "defaultBranch": "默认",
+      "local": "本地",
+      "fetchWarning": "部分技能仓库获取失败，已显示本地技能"
+    },
     "commands": "命令",
     "noCommands": "无命令",
     "commandCount": "{{count}} 个命令",
@@ -739,7 +872,6 @@
     "emptyDescription": "添加技能仓库以发现可用的技能",
     "addRepo": "添加技能仓库",
     "loading": "加载中...",
-    "installed": "已安装",
     "install": "安装",
     "installing": "安装中...",
     "uninstall": "卸载",
@@ -749,6 +881,16 @@
     "parentPath": "路径",
     "depth": "层级",
     "workflows": "工作流",
+    "depthUnknown": "深度未知",
+    "depthGroup": "深度 {{depth}}",
+    "groupByDepth": "按深度分组展示",
+    "noResults": "未找到匹配的技能",
+    "noResultsDescription": "请调整搜索或过滤条件后重试",
+    "clearFilters": "清除筛选",
+    "omoUsesOpencode": "OMO 暂无独立 Skills 目录，此处复用 OpenCode 的 ~/.config/opencode/skills。",
+    "errorBoundaryTitle": "技能页面出现错误",
+    "errorBoundaryDescription": "请重试或刷新页面。",
+    "errorBoundaryRetry": "重试",
     "loadFailed": "加载失败",
     "installSuccess": "技能 {{name}} 已安装",
     "installFailed": "安装失败",
@@ -786,27 +928,6 @@
         "checkDiskSpace": "请检查磁盘空间",
         "checkPermission": "请检查目录权限"
       }
-    },
-    "repo": {
-      "title": "管理技能仓库",
-      "description": "添加或删除 GitHub 技能仓库源",
-      "url": "仓库 URL",
-      "urlPlaceholder": "owner/name 或 https://github.com/owner/name",
-      "branch": "分支",
-      "branchPlaceholder": "main",
-      "path": "技能路径",
-      "pathPlaceholder": "skills (可选，留空扫描根目录)",
-      "add": "添加仓库",
-      "list": "已添加的仓库",
-      "empty": "暂无仓库",
-      "invalidUrl": "无效的仓库 URL 格式",
-      "addSuccess": "仓库 {{owner}}/{{name}} 已添加，识别到 {{count}} 个技能",
-      "addSuccessSimple": "仓库 {{owner}}/{{name}} 已添加",
-      "addFailed": "添加失败",
-      "refreshFailed": "刷新技能列表失败",
-      "removeSuccess": "仓库 {{owner}}/{{name}} 已删除",
-      "removeFailed": "删除失败",
-      "skillCount": "识别到 {{count}} 个技能"
     }
   },
   "health": {
@@ -839,5 +960,35 @@
     "importSuccess": "导入成功",
     "importSuccessDescription": "供应商 \"{{name}}\" 已成功导入",
     "importError": "导入失败"
+  },
+  "hermes": {
+    "rotation": {
+      "title": "自动轮换",
+      "active": "已启用",
+      "enable": "启用自动轮换",
+      "enableHint": "余额不足或 429 过多时自动切换到其他 Provider",
+      "balanceThreshold": "余额阈值",
+      "balanceHint": "余额低于此值（美元）时触发轮换。设为 0 或留空禁用。",
+      "rateLimit429": "429 上限",
+      "rateLimitHint": "连续 429 错误达到此数量时触发轮换。",
+      "interval": "轮询间隔（秒）",
+      "intervalHint": "自动检查余额和 429 状态的时间间隔。",
+      "counts429": "429 计数",
+      "rotateNow": "立即轮换",
+      "rotating": "轮换中…",
+      "rotated": "已轮换至 {{provider}}",
+      "saveSuccess": "轮换配置已保存"
+    },
+    "apiKey": "API 密钥",
+    "baseUrl": "基础 URL",
+    "defaultModel": "默认模型",
+    "loadFailed": "加载 Hermes 配置失败",
+    "noConfig": "未找到配置",
+    "provider": "提供商",
+    "saveSuccess": "配置保存成功",
+    "title": "Hermes Agent"
+  },
+  "terminal": {
+    "title": "远程终端"
   }
 }

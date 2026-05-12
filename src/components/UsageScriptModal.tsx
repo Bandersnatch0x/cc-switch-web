@@ -37,6 +37,10 @@ const TEMPLATE_KEYS = {
   PACKYCODE: "packycode",
   CODE88: "88code",
   PRIVNODE: "privnode",
+  TOKEN_PLAN: "tokenplan",
+  KIMI: "kimi",
+  ZHIPU: "zhipu",
+  MINIMAX: "minimax",
 } as const;
 
 // 生成预设模板的函数（支持国际化）
@@ -188,6 +192,130 @@ const generatePresetTemplates = (
     };
   }
 })`,
+
+  // Token Plan 模板
+  [TEMPLATE_KEYS.TOKEN_PLAN]: `({
+  request: {
+    url: "{{baseUrl}}/anthropic/v1/messages",
+    method: "POST",
+    headers: {
+      "x-api-key": "{{apiKey}}",
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1,
+      messages: [{ role: "user", content: "hi" }]
+    })
+  },
+  extractor: function (response) {
+    if (response.error) {
+      return {
+        isValid: false,
+        invalidMessage: response.error.message || "Invalid API key"
+      };
+    }
+    return {
+      isValid: true,
+      remaining: response.usage?.input_tokens ?? null,
+      unit: "tokens"
+    };
+  }
+})`,
+
+  // Kimi 模板
+  [TEMPLATE_KEYS.KIMI]: `({
+  request: {
+    url: "https://api.kimi.com/anthropic/v1/messages",
+    method: "POST",
+    headers: {
+      "x-api-key": "{{apiKey}}",
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1,
+      messages: [{ role: "user", content: "hi" }]
+    })
+  },
+  extractor: function (response) {
+    if (response.error) {
+      return {
+        isValid: false,
+        invalidMessage: response.error.message || "Invalid API key"
+      };
+    }
+    return {
+      isValid: true,
+      remaining: response.usage?.input_tokens ?? null,
+      unit: "tokens"
+    };
+  }
+})`,
+
+  // Zhipu (智谱) 模板
+  [TEMPLATE_KEYS.ZHIPU]: `({
+  request: {
+    url: "https://open.bigmodel.cn/api/anthropic/v1/messages",
+    method: "POST",
+    headers: {
+      "x-api-key": "{{apiKey}}",
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1,
+      messages: [{ role: "user", content: "hi" }]
+    })
+  },
+  extractor: function (response) {
+    if (response.error) {
+      return {
+        isValid: false,
+        invalidMessage: response.error.message || "Invalid API key"
+      };
+    }
+    return {
+      isValid: true,
+      remaining: response.usage?.input_tokens ?? null,
+      unit: "tokens"
+    };
+  }
+})`,
+
+  // MiniMax 模板
+  [TEMPLATE_KEYS.MINIMAX]: `({
+  request: {
+    url: "https://api.minimaxi.com/anthropic/v1/messages",
+    method: "POST",
+    headers: {
+      "x-api-key": "{{apiKey}}",
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1,
+      messages: [{ role: "user", content: "hi" }]
+    })
+  },
+  extractor: function (response) {
+    if (response.error) {
+      return {
+        isValid: false,
+        invalidMessage: response.error.message || "Invalid API key"
+      };
+    }
+    return {
+      isValid: true,
+      remaining: response.usage?.input_tokens ?? null,
+      unit: "tokens"
+    };
+  }
+})`,
 });
 
 // 模板名称国际化键映射
@@ -198,6 +326,10 @@ const TEMPLATE_NAME_KEYS: Record<string, string> = {
   [TEMPLATE_KEYS.PACKYCODE]: "usageScript.templates.packycode",
   [TEMPLATE_KEYS.CODE88]: "usageScript.templates.88code",
   [TEMPLATE_KEYS.PRIVNODE]: "usageScript.templates.privnode",
+  [TEMPLATE_KEYS.TOKEN_PLAN]: "usageScript.templates.tokenplan",
+  [TEMPLATE_KEYS.KIMI]: "usageScript.templates.kimi",
+  [TEMPLATE_KEYS.ZHIPU]: "usageScript.templates.zhipu",
+  [TEMPLATE_KEYS.MINIMAX]: "usageScript.templates.minimax",
 };
 
 const API_KEY_TEMPLATES = new Set<string>([
@@ -205,11 +337,16 @@ const API_KEY_TEMPLATES = new Set<string>([
   TEMPLATE_KEYS.PACKYCODE,
   TEMPLATE_KEYS.CODE88,
   TEMPLATE_KEYS.PRIVNODE,
+  TEMPLATE_KEYS.TOKEN_PLAN,
+  TEMPLATE_KEYS.KIMI,
+  TEMPLATE_KEYS.ZHIPU,
+  TEMPLATE_KEYS.MINIMAX,
 ]);
 
 const BASE_URL_TEMPLATES = new Set<string>([
   TEMPLATE_KEYS.GENERAL,
   TEMPLATE_KEYS.CODE88,
+  TEMPLATE_KEYS.TOKEN_PLAN,
 ]);
 
 const UsageScriptModal: React.FC<UsageScriptModalProps> = ({

@@ -72,7 +72,8 @@ const createDefaultProviders = (): ProvidersByApp => ({
       createdAt: Date.now(),
     },
   },
-  opencode: {
+  hermes: {},
+    opencode: {
     "opencode-1": {
       id: "opencode-1",
       name: "OpenCode Default",
@@ -108,6 +109,7 @@ const createDefaultCurrent = (): CurrentProviderState => ({
   claude: "claude-1",
   codex: "codex-1",
   gemini: "gemini-1",
+  hermes: "hermes-1",
   opencode: "opencode-1",
   omo: "omo-1",
 });
@@ -116,6 +118,7 @@ const createDefaultBackup = (): BackupProviderState => ({
   claude: null,
   codex: null,
   gemini: null,
+  hermes: null,
   opencode: null,
   omo: null,
 });
@@ -257,6 +260,7 @@ let mcpConfigs: McpConfigState = {
     },
   },
   gemini: {},
+  hermes: {},
   opencode: {},
   omo: {},
 };
@@ -350,6 +354,7 @@ export const resetProviderState = () => {
       },
     },
     gemini: {},
+    hermes: {},
     opencode: {},
     omo: {},
   };
@@ -507,6 +512,7 @@ const proxyTakeoverFromSettings = (settings: ProxySettings) => ({
   claude: settings.apps.claude.enabled,
   codex: settings.apps.codex.enabled,
   gemini: settings.apps.gemini.enabled,
+  hermes: false,
   opencode: settings.apps.opencode.enabled,
   omo: false,
 });

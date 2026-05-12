@@ -16,6 +16,7 @@ pub mod mcp;
 pub mod prompts;
 pub mod providers;
 pub mod proxy;
+pub mod rotation;
 pub mod settings;
 pub mod skills;
 pub mod system;

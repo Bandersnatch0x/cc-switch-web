@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { providersApi, settingsApi, type AppId } from "@/lib/api";
 import type { Provider, Settings } from "@/types";
+import type { ProvidersQueryData } from "@/lib/query/queries";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import generateUUID from "@/utils/uuid";
 
@@ -186,7 +187,55 @@ export const useSwitchProviderMutation = (appId: AppId) => {
     mutationFn: async (providerId: string) => {
       return await providersApi.switch(providerId, appId);
     },
+    onMutate: async (providerId: string) => {
+      const queryKey = ["providers", appId] as const;
+      // 取消正在进行的查询，避免覆盖乐观更新
+      await queryClient.cancelQueries({ queryKey });
+      const previous =
+        queryClient.getQueryData<ProvidersQueryData>(queryKey);
+      if (previous) {
+        queryClient.setQueryData<ProvidersQueryData>(queryKey, {
+          ...previous,
+          currentProviderId: providerId,
+        });
+      }
+      return { previous };
+    },
     onSuccess: async () => {
+      // 立即弹切换成功 toast（不阻塞）
+      const toastId = toast.success(
+        t("notifications.switchSuccessTitle", {
+          defaultValue: "切换供应商成功",
+        }),
+      );
+
+      // 异步追加 description（路径信息）— 不阻塞 toast
+      settingsApi
+        .getConfigDirInfo(appId)
+        .then((info) => {
+          toast.success(
+            t("notifications.switchSuccessTitle", {
+              defaultValue: "切换供应商成功",
+            }),
+            {
+              id: toastId,
+              description: t("notifications.switchSuccessWithPath", {
+                defaultValue:
+                  "已写入 {{path}}。如未生效，请重启 {{appName}} 终端。",
+                path: getLiveConfigPath(appId, info.dir),
+                appName: t(`apps.${appId}`, { defaultValue: appId }),
+              }),
+            },
+          );
+        })
+        .catch((error) => {
+          console.warn(
+            "[mutations] Failed to resolve live config path after switch",
+            error,
+          );
+        });
+
+      // 后台刷新真正的服务端状态
       await queryClient.invalidateQueries({ queryKey: ["providers", appId] });
 
       // 更新托盘菜单（失败不影响主操作）
@@ -198,31 +247,20 @@ export const useSwitchProviderMutation = (appId: AppId) => {
           trayError,
         );
       }
-
-      let description: string | undefined;
-      try {
-        const info = await settingsApi.getConfigDirInfo(appId);
-        description = t("notifications.switchSuccessWithPath", {
-          defaultValue:
-            "已写入 {{path}}。如未生效，请重启 {{appName}} 终端。",
-          path: getLiveConfigPath(appId, info.dir),
-          appName: t(`apps.${appId}`, { defaultValue: appId }),
-        });
-      } catch (error) {
-        console.warn(
-          "[mutations] Failed to resolve live config path after switch",
-          error,
+    },
+    onError: (
+      error: Error,
+      _providerId,
+      ctx: { previous?: ProvidersQueryData } | undefined,
+    ) => {
+      // 回滚乐观更新
+      if (ctx?.previous) {
+        queryClient.setQueryData<ProvidersQueryData>(
+          ["providers", appId],
+          ctx.previous,
         );
       }
 
-      toast.success(
-        t("notifications.switchSuccessTitle", {
-          defaultValue: "切换供应商成功",
-        }),
-        description ? { description } : undefined,
-      );
-    },
-    onError: (error: Error) => {
       const detail = extractErrorMessage(error) || t("common.unknown");
 
       // 标题与详情分离，便于扫描 + 一键复制

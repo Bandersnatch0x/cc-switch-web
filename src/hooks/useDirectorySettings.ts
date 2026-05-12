@@ -14,6 +14,7 @@ export interface ResolvedDirectories {
   claude: string;
   codex: string;
   gemini: string;
+  hermes: string;
   opencode: string;
 }
 
@@ -21,6 +22,7 @@ export interface ResolvedDirectoryInfoMap {
   claude?: ConfigDirInfo;
   codex?: ConfigDirInfo;
   gemini?: ConfigDirInfo;
+  hermes?: ConfigDirInfo;
   opencode?: ConfigDirInfo;
 }
 
@@ -152,6 +154,7 @@ export function useDirectorySettings({
     claude: "",
     codex: "",
     gemini: "",
+    hermes: "",
     opencode: "",
   });
   const [resolvedDirInfo, setResolvedDirInfo] = useState<ResolvedDirectoryInfoMap>(
@@ -164,6 +167,7 @@ export function useDirectorySettings({
     claude: "",
     codex: "",
     gemini: "",
+    hermes: "",
     opencode: "",
   });
   const initialAppConfigDirRef = useRef<string | undefined>(undefined);
@@ -233,6 +237,7 @@ export function useDirectorySettings({
           claude: defaultClaudeDir ?? "",
           codex: defaultCodexDir ?? "",
           gemini: defaultGeminiDir ?? "",
+          hermes: "",
           opencode: defaultOpencodeDir ?? "",
         };
 
@@ -242,6 +247,7 @@ export function useDirectorySettings({
           claude: claudeInfo,
           codex: codexInfo,
           gemini: geminiInfo,
+          hermes: undefined,
           opencode: opencodeInfo,
         });
 
@@ -250,6 +256,7 @@ export function useDirectorySettings({
           claude: claudeInfo.dir || defaultsRef.current.claude,
           codex: codexInfo.dir || defaultsRef.current.codex,
           gemini: geminiInfo.dir || defaultsRef.current.gemini,
+          hermes: "",
           opencode: opencodeInfo.dir || defaultsRef.current.opencode,
         });
       } catch (error) {
@@ -429,6 +436,7 @@ export function useDirectorySettings({
         claude: claudeDir ?? defaultsRef.current.claude,
         codex: codexDir ?? defaultsRef.current.codex,
         gemini: geminiDir ?? defaultsRef.current.gemini,
+        hermes: "",
         opencode: opencodeDir ?? defaultsRef.current.opencode,
       });
     },

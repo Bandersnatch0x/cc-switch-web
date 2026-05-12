@@ -27,7 +27,10 @@
     "formatSuccess": "Formatted successfully",
     "formatError": "Format failed: {{error}}",
     "copy": "Copy",
-    "view": "View"
+    "view": "View",
+    "none": "None",
+    "retry": "Retry",
+    "refresh": "Refresh"
   },
   "apiKeyInput": {
     "placeholder": "Enter API Key",
@@ -44,7 +47,8 @@
     "editCommonConfig": "Edit Common Config",
     "editCommonConfigTitle": "Edit Common Config Snippet",
     "commonConfigHint": "This snippet will be merged into settings.json when 'Write Common Config' is checked",
-    "fullSettingsHint": "Full Claude Code settings.json content"
+    "fullSettingsHint": "Full Claude Code settings.json content",
+    "commonConfigDescription": "Common Claude Configuration"
   },
   "header": {
     "viewOnGithub": "View on GitHub",
@@ -103,6 +107,10 @@
     "backupUpdateFailed": "Failed to update backup provider: {{error}}",
     "autoFailover": "Auto-switched to backup provider: {{name}}",
     "autoFailoverFailed": "Auto failover failed: {{error}}",
+    "updateFailed": "Failed to update provider: {{error}}",
+    "deleteFailed": "Failed to delete provider: {{error}}",
+    "backupUnavailable": "Backup provider is also unavailable, keeping current provider",
+    "duplicateFailed": "Failed to duplicate provider: {{error}}",
     "geminiConfig": "Gemini Configuration",
     "geminiConfigHint": "Use .env format to configure Gemini",
     "form": {
@@ -112,7 +120,18 @@
         "oauthHint": "Google official uses OAuth personal authentication, no need to fill in API Key. The browser will automatically open for login on first use.",
         "apiKeyPlaceholder": "Enter Gemini API Key"
       }
-    }
+    },
+    "health": {
+      "availability24h": "24h Availability",
+      "availabilityUnknown": "Availability unknown",
+      "available": "Available",
+      "degraded": "Degraded",
+      "latency": "Latency",
+      "statusLabel": "Status",
+      "unavailable": "Unavailable",
+      "unknown": "Unknown"
+    },
+    "officialPartner": "Official Partner"
   },
   "notifications": {
     "providerAdded": "Provider added",
@@ -139,7 +158,8 @@
     "deleteSuccess": "Provider deleted",
     "deleteFailed": "Failed to delete provider: {{error}}",
     "settingsSaved": "Settings saved",
-    "settingsSaveFailed": "Failed to save settings: {{error}}"
+    "settingsSaveFailed": "Failed to save settings: {{error}}",
+    "openLinkFailed": "Failed to open link: {{error}}"
   },
   "confirm": {
     "deleteProvider": "Delete Provider",
@@ -249,7 +269,65 @@
         "passwordTooShort": "Password must be at least {{min}} characters"
       }
     },
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "description": "Configure application settings",
+    "manualDirectoryInput": "Manual directory input",
+    "proxy": {
+      "advanced": "Advanced",
+      "alreadyRunning": "Proxy is already running",
+      "autoStart": "Auto Start",
+      "bindApp": "Bind App",
+      "bindAppDescription": "Bind this proxy to a specific application",
+      "description": "Configure proxy server settings",
+      "enableLogging": "Enable Logging",
+      "enabled": "Enabled",
+      "experimental": "Experimental",
+      "failover": "Failover",
+      "firstByteTimeout": "First Byte Timeout",
+      "host": "Host",
+      "idleTimeout": "Idle Timeout",
+      "listen": "Listen",
+      "loadingLogs": "Loading logs...",
+      "noRecentLogs": "No recent logs",
+      "nonStreamingTimeout": "Non-Streaming Timeout",
+      "omoUnsupported": "OMO not supported on this platform",
+      "port": "Port",
+      "providerHidden": "Provider hidden",
+      "publicBindWarning": "Warning: Binding to a public address",
+      "recentLogs": "Recent Logs",
+      "requests": "Requests",
+      "restore": "Restore",
+      "restoreFailed": "Restore failed",
+      "restored": "Restored successfully",
+      "running": "Running",
+      "start": "Start",
+      "startFailed": "Start failed",
+      "started": "Started successfully",
+      "stop": "Stop",
+      "stopFailed": "Stop failed",
+      "stopped": "Stopped",
+      "stoppedStatus": "Stopped",
+      "successRate": "Success Rate",
+      "takeover": "Takeover",
+      "takeoverDescription": "Take over proxy from another instance",
+      "takeoverDisabled": "Takeover disabled",
+      "takeoverEnabled": "Takeover enabled",
+      "takeoverFailed": "Takeover failed",
+      "test": "Test",
+      "testApp": "Test App",
+      "testFailed": "Test failed",
+      "testSuccess": "Test passed",
+      "testedApp": "Tested App",
+      "title": "Proxy",
+      "upstreamProxy": "Upstream Proxy",
+      "uptime": "Uptime",
+      "validation": {
+        "hostRequired": "Host is required",
+        "portInvalid": "Invalid port number",
+        "publicBindRequiresEnable": "Public binding requires enabled proxy"
+      }
+    },
+    "restartRequiredDescription": "Some changes require a restart to take effect"
   },
   "apps": {
     "claude": "Claude Code",
@@ -257,6 +335,8 @@
     "gemini": "Gemini",
     "opencode": "OpenCode",
     "omo": "OMO",
+    "hermes": "Hermes",
+    "openclaw": "OpenClaw",
     "comingSoon": "Coming soon",
     "scopeHint": "This only switches the management view. Live config changes happen when you switch providers."
   },
@@ -359,7 +439,8 @@
     "pleaseAddEndpoint": "Please add an endpoint first",
     "testUnavailable": "Speed test unavailable",
     "noResult": "No result returned",
-    "testFailed": "Speed test failed: {{error}}"
+    "testFailed": "Speed test failed: {{error}}",
+    "description": "Test provider endpoint connectivity and performance"
   },
   "codexConfig": {
     "authJson": "auth.json (JSON) *",
@@ -371,7 +452,11 @@
     "editCommonConfig": "Edit Common Config",
     "editCommonConfigTitle": "Edit Codex Common Config Snippet",
     "commonConfigHint": "This snippet will be appended to the end of config.toml when 'Write Common Config' is checked",
-    "apiUrlLabel": "API Request URL"
+    "apiUrlLabel": "API Request URL",
+    "commonConfigDescription": "Common Codex Configuration",
+    "modelName": "Model Name",
+    "modelNameHint": "Specify the model to use with Codex",
+    "modelNamePlaceholder": "e.g., gpt-4o"
   },
   "geminiConfig": {
     "envFile": "Environment Variables (.env)",
@@ -381,13 +466,15 @@
     "writeCommonConfig": "Write Common Config",
     "editCommonConfig": "Edit Common Config",
     "editCommonConfigTitle": "Edit Gemini Common Config Snippet",
-    "commonConfigHint": "Common config snippet will be merged into all Gemini providers with it enabled"
+    "commonConfigHint": "Common config snippet will be merged into all Gemini providers with it enabled",
+    "commonConfigDescription": "Common Gemini Configuration"
   },
   "providerPreset": {
     "label": "Provider Preset",
     "custom": "Custom Configuration",
     "other": "Other",
-    "hint": "You can continue to adjust the fields below after selecting a preset."
+    "hint": "You can continue to adjust the fields below after selecting a preset.",
+    "categoryOther": "Other"
   },
   "usage": {
     "queryFailed": "Query failed",
@@ -416,7 +503,11 @@
       "newapi": "New API",
       "packycode": "PackyCode",
       "88code": "88code",
-      "privnode": "Privnode"
+      "privnode": "Privnode",
+      "token_plan": "Token Plan",
+      "kimi": "Kimi",
+      "zhipu": "Zhipu",
+      "minimax": "MiniMax"
     },
     "credentialsConfig": "Credentials",
     "accessToken": "Access Token",
@@ -462,7 +553,8 @@
     "fieldExtra": "• extra: String, custom display text",
     "tip1": "• Variables {{apiKey}} and {{baseUrl}} are automatically replaced",
     "tip2": "• Extractor function runs in sandbox environment, supports ES2020+ syntax",
-    "tip3": "• Entire config must be wrapped in () to form object literal expression"
+    "tip3": "• Entire config must be wrapped in () to form object literal expression",
+    "description": "Configure usage tracking scripts for different providers"
   },
   "errors": {
     "usage_query_failed": "Usage query failed"
@@ -485,6 +577,7 @@
       "editServer": "Edit Server",
       "deleteServer": "Delete Server",
       "deleteConfirm": "Are you sure you want to delete server \"{{id}}\"? This action cannot be undone.",
+      "description": "Centrally manage MCP servers and control their app scope.",
       "noServers": "No servers yet",
       "enabledApps": "Enabled Apps",
       "apps": {
@@ -542,6 +635,7 @@
     },
     "wizard": {
       "title": "MCP Configuration Wizard",
+      "description": "Quickly configure MCP server and auto-generate JSON configuration",
       "hint": "Quickly configure MCP server and auto-generate JSON configuration",
       "type": "Type",
       "typeStdio": "stdio",
@@ -668,7 +762,9 @@
     "confirm": {
       "deleteTitle": "Confirm Delete",
       "deleteMessage": "Are you sure you want to delete prompt \"{{name}}\"?"
-    }
+    },
+    "dialogDescription": "Manage and execute prompts",
+    "panelDescription": "Browse and configure prompts"
   },
   "env": {
     "warning": {
@@ -714,11 +810,48 @@
     "title": "Claude Skills Management",
     "description": "Discover and install Claude skills from popular repositories to extend Claude Code/Codex capabilities",
     "search": "Search skills...",
-    "filter": "Filter",
+    "searchPlaceholder": "Search skill name or description",
+    "filter": {
+      "all": "All",
+      "allRepos": "All Repos",
+      "installStatus": "Install Status",
+      "installed": "Installed",
+      "repo": "Repository",
+      "uninstalled": "Not Installed"
+    },
     "filterAll": "All",
     "filterInstalled": "Installed",
     "filterNotInstalled": "Not Installed",
     "filterByRepo": "Filter by Repository",
+    "allRepos": "All Repositories",
+    "installStatus": "Install Status",
+    "all": "All",
+    "installed": "Installed",
+    "uninstalled": "Not Installed",
+    "repo": {
+      "title": "Manage Skill Repositories",
+      "description": "Add or remove GitHub skill repository sources",
+      "url": "Repository URL",
+      "urlPlaceholder": "owner/name or https://github.com/owner/name",
+      "branch": "Branch",
+      "branchPlaceholder": "main",
+      "path": "Skills Path",
+      "pathPlaceholder": "skills (optional, leave empty for root)",
+      "add": "Add Repository",
+      "list": "Added Repositories",
+      "empty": "No repositories",
+      "invalidUrl": "Invalid repository URL format",
+      "addSuccess": "Repository {{owner}}/{{name}} added, detected {{count}} skills",
+      "addSuccessSimple": "Repository {{owner}}/{{name}} added",
+      "addFailed": "Failed to add",
+      "refreshFailed": "Failed to refresh skills list",
+      "removeSuccess": "Repository {{owner}}/{{name}} removed",
+      "removeFailed": "Failed to remove",
+      "skillCount": "{{count}} skills detected",
+      "defaultBranch": "default",
+      "local": "Local",
+      "fetchWarning": "Some skill repositories failed to load; local skills are shown."
+    },
     "commands": "Commands",
     "noCommands": "No commands",
     "commandCount": "{{count}} commands",
@@ -739,7 +872,6 @@
     "emptyDescription": "Add skill repositories to discover available skills",
     "addRepo": "Add Skill Repository",
     "loading": "Loading...",
-    "installed": "Installed",
     "install": "Install",
     "installing": "Installing...",
     "uninstall": "Uninstall",
@@ -749,6 +881,16 @@
     "parentPath": "Path",
     "depth": "Depth",
     "workflows": "Workflows",
+    "depthUnknown": "Depth unknown",
+    "depthGroup": "Depth {{depth}}",
+    "groupByDepth": "Group by depth",
+    "noResults": "No matching skills found",
+    "noResultsDescription": "Try adjusting your search or filter criteria",
+    "clearFilters": "Clear filters",
+    "omoUsesOpencode": "OMO does not have its own Skills directory; this reuses OpenCode's ~/.config/opencode/skills.",
+    "errorBoundaryTitle": "Skills page encountered an error",
+    "errorBoundaryDescription": "Please retry or refresh the page.",
+    "errorBoundaryRetry": "Retry",
     "loadFailed": "Failed to load",
     "installSuccess": "Skill {{name}} installed",
     "installFailed": "Failed to install",
@@ -786,27 +928,6 @@
         "checkDiskSpace": "Please check disk space",
         "checkPermission": "Please check directory permissions"
       }
-    },
-    "repo": {
-      "title": "Manage Skill Repositories",
-      "description": "Add or remove GitHub skill repository sources",
-      "url": "Repository URL",
-      "urlPlaceholder": "owner/name or https://github.com/owner/name",
-      "branch": "Branch",
-      "branchPlaceholder": "main",
-      "path": "Skills Path",
-      "pathPlaceholder": "skills (optional, leave empty for root)",
-      "add": "Add Repository",
-      "list": "Added Repositories",
-      "empty": "No repositories",
-      "invalidUrl": "Invalid repository URL format",
-      "addSuccess": "Repository {{owner}}/{{name}} added, detected {{count}} skills",
-      "addSuccessSimple": "Repository {{owner}}/{{name}} added",
-      "addFailed": "Failed to add",
-      "refreshFailed": "Failed to refresh skills list",
-      "removeSuccess": "Repository {{owner}}/{{name}} removed",
-      "removeFailed": "Failed to remove",
-      "skillCount": "{{count}} skills detected"
     }
   },
   "health": {
@@ -839,5 +960,35 @@
     "importSuccess": "Import successful",
     "importSuccessDescription": "Provider \"{{name}}\" has been successfully imported",
     "importError": "Failed to import"
+  },
+  "hermes": {
+    "title": "Hermes Configuration",
+    "loadFailed": "Failed to load configuration",
+    "saveSuccess": "Configuration saved",
+    "noConfig": "No configuration",
+    "provider": "Provider",
+    "defaultModel": "Default Model",
+    "baseUrl": "Base URL",
+    "apiKey": "API Key",
+    "rotation": {
+      "title": "Auto Rotation",
+      "active": "Active",
+      "enable": "Enable Auto Rotation",
+      "enableHint": "Auto-switch when balance is low or too many 429 errors",
+      "balanceThreshold": "Balance Threshold",
+      "balanceHint": "Rotate when balance falls below this value (USD). Set to 0 or leave empty to disable.",
+      "rateLimit429": "429 Limit",
+      "rateLimitHint": "Rotate when consecutive 429 errors reach this count.",
+      "interval": "Polling Interval (seconds)",
+      "intervalHint": "How often to check balance and 429 status.",
+      "counts429": "429 Counts",
+      "rotateNow": "Rotate Now",
+      "rotating": "Rotating...",
+      "rotated": "Rotated to {{provider}}",
+      "saveSuccess": "Rotation config saved"
+    }
+  },
+  "terminal": {
+    "title": "Remote Terminal"
   }
 }

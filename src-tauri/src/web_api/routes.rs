@@ -6,7 +6,7 @@ use axum::{
 };
 
 use super::{
-    handlers::{config, health, mcp, prompts, providers, proxy, settings, skills, system},
+    handlers::{config, health, mcp, prompts, providers, proxy, rotation, settings, skills, system},
     SharedState,
 };
 
@@ -19,6 +19,7 @@ pub fn create_router(state: SharedState) -> Router {
         .nest("/skills", skill_routes())
         .nest("/settings", settings_routes())
         .nest("/proxy", proxy_routes())
+        .nest("/rotation", rotation_routes())
         .nest("/config", config_routes())
         .route("/tray/update", post(system::update_tray))
         .route("/system/csrf-token", get(system::get_csrf_token))
@@ -162,4 +163,14 @@ fn config_routes() -> Router<SharedState> {
             "/:app/common-snippet",
             get(config::get_common_config_snippet).put(config::set_common_config_snippet),
         )
+}
+
+fn rotation_routes() -> Router<SharedState> {
+    Router::new()
+        .route("/config", get(rotation::get_config).put(rotation::update_config))
+        .route("/state", get(rotation::get_status))
+        .route("/report-error", post(rotation::report_error))
+        .route("/rotate-now", post(rotation::rotate_now))
+        .route("/start", post(rotation::start_rotation))
+        .route("/stop", post(rotation::stop_rotation))
 }

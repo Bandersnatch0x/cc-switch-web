@@ -72,6 +72,8 @@ const getMockConfigDir = (app: AppId): string => {
       return "/default/codex";
     case "gemini":
       return "/default/gemini";
+    case "hermes":
+      return "/default/hermes";
     case "opencode":
     case "omo":
       return "/default/opencode";

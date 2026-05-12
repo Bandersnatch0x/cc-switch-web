@@ -9,6 +9,7 @@ export const PROVIDER_APPS = [
   "claude",
   "codex",
   "gemini",
+  "hermes",
   "opencode",
   "omo",
 ] as const satisfies readonly AppId[];
@@ -40,6 +41,7 @@ export const DIRECTORY_APPS = [
   "claude",
   "codex",
   "gemini",
+  "hermes",
   "opencode",
 ] as const satisfies readonly AppId[];
 

@@ -1,4 +1,6 @@
 export type { AppId } from "./types";
+export { systemApi } from "./system";
+export type { RuntimeMode } from "./system";
 export { providersApi } from "./providers";
 export { settingsApi } from "./settings";
 export { mcpApi } from "./mcp";

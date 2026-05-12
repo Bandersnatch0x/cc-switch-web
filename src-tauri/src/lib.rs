@@ -28,6 +28,8 @@ mod settings;
 pub mod store;
 mod usage_script;
 #[cfg(feature = "web-server")]
+pub mod hermes_rotation;
+#[cfg(feature = "web-server")]
 pub mod web_api;
 
 pub use app_config::{AppType, McpApps, McpServer, MultiAppConfig};
